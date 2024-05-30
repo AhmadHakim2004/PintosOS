@@ -1,0 +1,54 @@
+name: CSCC69 Workflow
+
+on: [pull_request]
+
+jobs:
+  Compile:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Pull Docker image
+      run: docker pull thierrysans/pintos
+
+    - name: Run Pintos and compile threads
+      run: |
+        docker run --rm -v "${{ github.workspace }}:/pintos" thierrysans/pintos bash -c "\
+          cd /pintos/src/utils && \
+          make && \
+          cd /pintos/src/threads && \
+          make
+        "
+
+  Test:
+    needs: Compile
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test_name:
+          - alarm-single
+          - alarm-multiple
+          - alarm-simultaneous
+          - alarm-zero
+          - alarm-negative
+
+    steps:
+    - name: Run Pintos and ${{ matrix.test_name }} test
+      run: |
+        docker run --rm thierrysans/pintos bash -c "\
+          cd /pintos/src/threads/build && \
+          make tests/threads/${{ matrix.test_name }}.result && \
+          if grep -q 'PASS' tests/threads/${{ matrix.test_name }}.result; then \
+            echo 'Test passed!'; \
+            exit 0; \
+          else \
+            echo 'Test failed!'; \
+            cat tests/threads/${{ matrix.test_name }}.result; \
+            exit 1; \
+          fi \
+        "
