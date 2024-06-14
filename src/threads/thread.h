@@ -94,6 +94,11 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+    struct lock *waiting_lock;          /* Lock that the thread is waiting on. */
+    int original_priority;                       /* Priority. */
+    struct list donations;              /* List of donations. */
+    struct list_elem donation_elem;     /* List element for donations list. */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
