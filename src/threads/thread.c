@@ -20,6 +20,9 @@
    of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
+/* List of sleeping threads. */
+static struct list sleeping_list;
+
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
@@ -68,6 +71,9 @@ static void init_thread (struct thread *, const char *name, int priority);
 static bool is_thread (struct thread *) UNUSED;
 static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
+static bool has_lower_wakeup_tick (const struct list_elem *a_, 
+                                   const struct list_elem *b_, 
+                                   void *aux UNUSED);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
@@ -90,6 +96,7 @@ thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
+  list_init (&sleeping_list);
   list_init (&ready_list);
   list_init (&all_list);
 
@@ -542,6 +549,40 @@ thread_schedule_tail (struct thread *prev)
     }
 }
 
+/* Puts the current thread into sleep by inserting it in the sleeping threads 
+   list, setting its wakeup tick, and blocking it. */
+void
+insert_sleeping_thread (int64_t wakeup_tick) 
+{
+  enum intr_level old_level = intr_disable ();
+  thread_current ()->wakeup_tick = wakeup_tick;
+  list_insert_ordered (&sleeping_list, &thread_current ()->elem, 
+                       has_lower_wakeup_tick, NULL);
+  thread_block ();
+  intr_set_level (old_level);
+}
+
+/* Wakes up sleeping threads with wakeup tick less or equal to the OS ticks. */
+void
+wakeup_ready_sleeping_threads (int64_t os_ticks) 
+{
+  struct list_elem *e = list_begin (&sleeping_list);
+  struct thread *st = list_entry (e, struct thread, elem);
+
+  enum intr_level old_level = intr_disable ();
+  while (e != list_end (&sleeping_list) && st->wakeup_tick <= os_ticks) 
+    { 
+      e = list_next (e);
+
+      st->wakeup_tick = -1;
+      list_remove (&st->elem);
+      thread_unblock (st);
+      
+      st = list_entry (e, struct thread, elem);
+    }
+  intr_set_level (old_level);
+}
+
 /* Schedules a new process.  At entry, interrupts must be off and
    the running process's state must have been changed from
    running to some other state.  This function finds another
@@ -577,6 +618,17 @@ allocate_tid (void)
   lock_release (&tid_lock);
 
   return tid;
+}
+/* Returns true if sleeping thread A has lower wakeup tick value than B, false
+   otherwise. */
+static bool
+has_lower_wakeup_tick (const struct list_elem *a_, const struct list_elem *b_, 
+                       void *aux UNUSED) 
+{
+  struct thread *a = list_entry (a_, struct thread, elem);
+  struct thread *b = list_entry (b_, struct thread, elem);
+  
+  return a->wakeup_tick < b->wakeup_tick;
 }
 
 /* Offset of `stack' member within `struct thread'.
