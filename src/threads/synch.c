@@ -191,6 +191,17 @@ lock_init (struct lock *lock)
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
 }
+void 
+thread_donate_priority (struct thread *t) 
+{
+  struct list_elem * highest_priority_donor = list_back(&t->donations);
+  int max_priority = list_entry (highest_priority_donor, struct thread, donation_elem)->priority;
+  if (t->original_priority > max_priority) {
+    t->priority = t->original_priority;
+  } else {
+    t->priority = max_priority;
+  }
+}
 
 /* Acquires LOCK, sleeping until it becomes available if
    necessary.  The lock must not already be held by the current
