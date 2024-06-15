@@ -194,6 +194,10 @@ lock_init (struct lock *lock)
 void 
 thread_donate_priority (struct thread *t) 
 {
+  if (list_empty(&t->donations)) {
+    t->priority = t->original_priority;
+    return;
+  }
   struct list_elem * highest_priority_donor = list_back(&t->donations);
   int max_priority = list_entry (highest_priority_donor, struct thread, donation_elem)->priority;
   if (t->original_priority > max_priority) {
