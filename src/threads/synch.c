@@ -221,12 +221,15 @@ lock_acquire (struct lock *lock)
   if (lock->holder != NULL)
     {
       thread_current ()->waiting_lock = lock;
+      // Then there are no donors for the lock holder
       if (list_empty(&lock->semaphore.waiters))
         list_insert_ordered(&lock->holder->donations, &thread_current ()->donation_elem, 
                              thread_compare_priority, NULL);
       else {
+      // If the lock holder has donors, then 
         struct list_elem * highest_priority_waiter = list_back(&lock->semaphore.waiters);
-        if(list_entry (highest_priority_waiter, struct thread, donation_elem)->priority < thread_current ()->priority) {
+        if (list_entry (highest_priority_waiter, struct thread, donation_elem)->priority < thread_current ()->priority) {
+          // Remove the highest priority waiter from the lock holder's donations list since it is no longer the highest priority for the lock holder
           list_remove(highest_priority_waiter);
           list_insert_ordered(&lock->holder->donations, &thread_current ()->donation_elem, 
                                thread_compare_priority, NULL);
@@ -272,6 +275,24 @@ lock_release (struct lock *lock)
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+
+  if (!list_empty(&thread_current ()->donations)) {
+    struct list_elem *donation_elem;
+    for (donation_elem = list_begin(&thread_current ()->donations); 
+         donation_elem != list_end(&thread_current ()->donations); 
+         donation_elem = list_next(donation_elem)) {
+      struct thread *t = list_entry(donation_elem, struct thread, donation_elem);
+      if (t->waiting_lock == lock) {
+        list_remove(donation_elem);
+      }
+    }
+
+    
+    
+
+
+  
+  }
 }
 
 /* Returns true if the current thread holds LOCK, false
