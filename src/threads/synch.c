@@ -286,12 +286,8 @@ lock_release (struct lock *lock)
         list_remove(donation_elem);
       }
     }
+    thread_donate_priority (thread_current ());
 
-    
-    
-
-
-  
   }
 }
 
