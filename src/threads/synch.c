@@ -205,6 +205,10 @@ thread_donate_priority (struct thread *t)
   } else {
     t->priority = max_priority;
   }
+  if (t->waiting_lock != NULL) {
+    thread_donate_priority (t->waiting_lock->holder);
+  }
+  sort_ready_list();
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -231,10 +235,10 @@ lock_acquire (struct lock *lock)
                              thread_compare_priority, NULL);
       else {
       // If the lock holder has donors, then 
-        struct list_elem * highest_priority_waiter = list_back(&lock->semaphore.waiters);
-        if (list_entry (highest_priority_waiter, struct thread, donation_elem)->priority < thread_current ()->priority) {
+        struct list_elem * highest_priority_waiter = list_max(&lock->semaphore.waiters, thread_compare_priority, NULL);
+        if (list_entry (highest_priority_waiter, struct thread, elem)->priority < thread_current ()->priority) {
           // Remove the highest priority waiter from the lock holder's donations list since it is no longer the highest priority for the lock holder
-          list_remove(highest_priority_waiter);
+          list_remove(&list_entry (highest_priority_waiter, struct thread, elem)->donation_elem);
           list_insert_ordered(&lock->holder->donations, &thread_current ()->donation_elem, 
                                thread_compare_priority, NULL);
         }
@@ -277,10 +281,7 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  lock->holder = NULL;
-  sema_up (&lock->semaphore);
-
-  if (!list_empty(&thread_current ()->donations)) {
+if (!list_empty(&thread_current ()->donations)) {
     struct list_elem *donation_elem;
     for (donation_elem = list_begin(&thread_current ()->donations); 
          donation_elem != list_end(&thread_current ()->donations); 
@@ -293,6 +294,10 @@ lock_release (struct lock *lock)
     thread_donate_priority (thread_current ());
 
   }
+
+  lock->holder = NULL;
+  sema_up (&lock->semaphore);
+
 }
 
 /* Returns true if the current thread holds LOCK, false
