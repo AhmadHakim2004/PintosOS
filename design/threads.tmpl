@@ -177,6 +177,26 @@ iff the priority of the thread in the first semaphore is <= priority of the thre
 >> B5: Describe the sequence of events when lock_release() is called
 >> on a lock that a higher-priority thread is waiting for.
 
+When lock_release is called on a lock that a higher-priority thread is waiting for, the function performs several essential 
+steps to manage thread priorities and ensure efficient scheduling:
+
+1) Validation: The function first checks that the lock is valid and currently held by the calling thread. 
+This prevents errors and ensures that only the correct thread can release the lock.
+
+2) Priority Donations Management: It then examines whether the current thread has any potential priority donations. 
+Each lock can have up to one potential priority donation which is the greatest priority element in the chain waiting on the lock.
+The function removes any donations associated with the lock being released, ensuring that these outdated donations no longer 
+affect the current thread's priority.
+
+3) Recalculation of Priority: After handling the donations list, the function recalculates the current thread's priority. 
+Given in this case a higher-priority thread is waiting on the lock, if there are remaining donations from other locks, the thread's priority
+is adjusted to reflect the highest priority amongst the remaining potential donors and the original priority of the thread. 
+The thread's priority is reset to its original value if no donations are left.
+
+4) Release the Lock: The function then marks the lock as no longer held by the current thread by setting lock->holder to NULL.
+
+5) Wake Up Waiting Threads: Finally, the function calls sema_up on the lock's semaphore, which wakes up one of the threads waiting for the lock. 
+This allows the next highest-priority thread in line to acquire the lock and proceed with its execution.
 
 ---- SYNCHRONIZATION ----
 
