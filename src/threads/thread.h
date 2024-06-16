@@ -94,6 +94,11 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+    struct lock *waiting_lock;          /* Lock that the thread is waiting on. */
+    int original_priority;              /* Priority. */
+    struct list donations;              /* List of donations. */
+    struct list_elem donation_elem;     /* List element for donations list. */
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -131,6 +136,8 @@ void thread_yield (void);
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 
+void thread_donate_priority (struct thread *t); 
+
 int thread_get_priority (void);
 void thread_set_priority (int);
 
@@ -141,5 +148,8 @@ int thread_get_load_avg (void);
 
 void insert_sleeping_thread (int64_t);
 void wakeup_ready_sleeping_threads (int64_t);
+
+bool thread_compare_priority (const struct list_elem *, 
+                              const struct list_elem *, void *);
 
 #endif /* threads/thread.h */

@@ -24,7 +24,6 @@ jobs:
           cd /pintos/src/threads && \
           make
         "
-
   Test:
     needs: Compile
     runs-on: ubuntu-latest
@@ -36,11 +35,34 @@ jobs:
           - alarm-simultaneous
           - alarm-zero
           - alarm-negative
+          - alarm-priority
+          - priority-change
+          - priority-fifo
+          - priority-preempt
+          - priority-sema
+          - priority-condvar
+          - priority-donate-chain
+          - priority-donate-one
+          - priority-donate-multiple
+          - priority-donate-multiple2
+          - priority-donate-nest
+          - priority-donate-sema
+          - priority-donate-lower
 
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Pull Docker image
+      run: docker pull thierrysans/pintos
+
     - name: Run Pintos and ${{ matrix.test_name }} test
       run: |
-        docker run --rm thierrysans/pintos bash -c "\
+        docker run --rm -v "${{ github.workspace }}:/pintos" thierrysans/pintos bash -c "\
+          cd /pintos/src/utils && \
+          make && \
+          cd /pintos/src/threads && \
+          make
           cd /pintos/src/threads/build && \
           make tests/threads/${{ matrix.test_name }}.result && \
           if grep -q 'PASS' tests/threads/${{ matrix.test_name }}.result; then \
