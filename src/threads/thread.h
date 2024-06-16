@@ -95,7 +95,7 @@ struct thread
     struct list_elem elem;              /* List element. */
 
     struct lock *waiting_lock;          /* Lock that the thread is waiting on. */
-    int original_priority;                       /* Priority. */
+    int original_priority;              /* Priority. */
     struct list donations;              /* List of donations. */
     struct list_elem donation_elem;     /* List element for donations list. */
 

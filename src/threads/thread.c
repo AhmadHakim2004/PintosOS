@@ -342,6 +342,11 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+
+
+/* This function updates the priority of a thread based on the highest priority 
+donor thread it is waiting on. If there are no donors, it resets to the
+original priority */
 void 
 thread_donate_priority (struct thread *t) 
 {
@@ -430,6 +435,8 @@ thread_get_recent_cpu (void)
   return 0;
 }
 
+
+/* Compares the priorities of the two threads */
 bool
 thread_compare_priority(const struct list_elem *a, const struct list_elem *b, 
                         void *aux UNUSED)
