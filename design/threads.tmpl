@@ -60,6 +60,13 @@ Syed Asad Hussain asadh.syed@mail.utoronto.ca
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+Added to struct thread:
+    int priority;                       /* Priority. */
+    struct lock *waiting_lock;          /* Lock that the thread is waiting on. */
+    int original_priority;              /* Priority. */
+    struct list donations;              /* List of donations. */
+    struct list_elem donation_elem;     /* List element for donations list. */
+
 >> B2: Explain the data structure used to track priority donation.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
 >> .png file.)
