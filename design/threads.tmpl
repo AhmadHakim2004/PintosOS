@@ -71,6 +71,75 @@ Added to struct thread:
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
 >> .png file.)
 
+The data structure used to track priority donation in this implementation 
+is a linked list (struct list), where each thread maintains a list of threads 
+that could potentially donate their priority to it, sorted by priority. 
+Specifically, this list contains the highest priority thread waiting for 
+each lock held by the current thread. Each thread has the following relevant members:
+
+waiting_lock: A pointer to the lock that the thread is currently waiting on.
+original_priority: The base priority of the thread, before any donations.
+donations: A list of threads that could potentially donate their priority to this thread. 
+           This list contains the highest priority thread waiting for each lock held by the current thread.
+donation_elem: A list element used to insert this thread into another thread's donation list.
+
+
+Nested Priority Donation
+
+Example Scenario
+Thread C holds Lock 2.
+Thread B tries to acquire Lock 2, which is held by Thread B, and is blocked, so it could donate its priority to Thread C.
+Thread A tries to acquire Lock 1 but is blocked, so it could donate its priority to Thread B.
+
+
+  
+Thread A [original_priority: 30, priority: 30]
+  |
+  |---> Lock 1 (held by B)
+         |
+         v
+Thread B [original_priority: 20, priority: 30]
+  |
+  |---> Lock 2 (held by C)
+         |
+         v
+Thread C [original_priority: 10, priority: 30]
+
+
+1) Thread C acquires lock 2 since it currently has no owner 
+
+    Lock 2 (held by C)
+         |
+         v
+Thread C [original_priority: 10, priority: 10]
+
+2) Thread B tries to acquire lock 2 but it is held by thread C so it is put on the waiters list and list of donors for 
+thread C as it has the highest priority amonst the chain of waiters
+
+Thread B [original_priority: 20, priority: 20]
+  |
+  |---> Lock 2 (held by C)
+         |
+         v
+Thread C [original_priority: 10, priority: 20]
+
+3) Thread A tries to acquire lock 1 but it is held by thread B so it is put on the waiters list and list of donors for 
+thread B as it has the highest priority amonst the chain of waiters. The priority of Thread B gest updated and becomes 30.
+Since Thread B is the top donor in the list for Thread C it in turn gets updated to Thread B's current value of 30.
+
+Thread A [original_priority: 30, priority: 30]
+  |
+  |---> Lock 1 (held by B)
+         |
+         v
+Thread B [original_priority: 20, priority: 30]
+  |
+  |---> Lock 2 (held by C)
+         |
+         v
+Thread C [original_priority: 10, priority: 30]
+
+
 ---- ALGORITHMS ----
 
 >> B3: How do you ensure that the highest priority thread waiting for
