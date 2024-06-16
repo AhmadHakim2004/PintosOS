@@ -377,6 +377,9 @@ thread_donate_priority (struct thread *t)
 void
 thread_set_priority (int new_priority) 
 {
+  enum intr_level old_level;
+  old_level = intr_disable ();
+
   struct thread *cur = thread_current ();
   cur->original_priority = new_priority;
   cur-> priority = new_priority;
@@ -390,6 +393,8 @@ thread_set_priority (int new_priority)
           cur->priority = max_donor->priority;
         }
     }
+  
+  intr_set_level (old_level);
 
   if (!list_empty (&ready_list) 
       && cur->priority < list_entry (list_back (&ready_list), struct thread, 
