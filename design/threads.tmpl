@@ -121,6 +121,19 @@ iff the priority of the thread in the first semaphore is <= priority of the thre
 >> another design you considered?
 
 
+For priority scheduling, we first considered sorting the ready_list (of threads) every time there was a change in a thread’s priority, 
+a new thread was created, before thread_yield(), before schedule(), before sema_up, etc. 
+Then we would use list_pop_back to pop the thread with the highest priority because sorting will make sure that the thread with the
+highest priority is the last thread in the ready_list. Although, this worked, we soon realized this added unnecessary complexity. 
+
+Sorting the ready_list runs in O(nlogn)  (where n is the size of the list). Sorting every time in the aforementioned cases was 
+unnecessary and unneeded because we just had to make sure that every time we scheduled a new thread to run, that thread had the 
+highest priority with respect to all the other waiting threads. To do this, we realized we could always just use list_max on the 
+ready_list to pop the thread with the highest priority instead of first sorting it and popping the last thread out.
+List_max runs in O(n) time and so our design was much more efficient. 
+
+
+
                SURVEY QUESTIONS
                ================
 
