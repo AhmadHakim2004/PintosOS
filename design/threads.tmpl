@@ -80,17 +80,26 @@ Locks and condition variables are implemented in terms of semaphores.
 
 A lock is just a semaphore with initial value of 1.
 
-When a thread calls cond_wait on a condition, a new semaphore_elem is created and added to the cond->waiters list; then sema_down is called on semaphore_elems.semaphore which adds the current thread to the semaphores waiter list (*). 
+When a thread calls cond_wait on a condition, a new semaphore_elem is created and added to the cond->waiters list;
+then sema_down is called on semaphore_elems.semaphore which adds the current thread to the semaphores waiter list (*). 
 
-It follows that to ensure the highest priority thread waiting for a lock, semaphore, or condition variables wakes up first, we must ensure two things:
+It follows that to ensure the highest priority thread waiting for a lock, semaphore, or condition variables wakes up first, 
+we must ensure two things:
 
 1) when sema_up is called on a semaphore, the highest priority thread waiting for that semaphore is unblocked first. 
 
-2) when cond_signal is called on a condition, sema_up should be called on the semaphore (from the conditions’ list of waiters) that has the highest priority thread in the semaphores’ list of waiters. 
+2) when cond_signal is called on a condition, sema_up should be called on the semaphore (from the conditions’ list of waiters) 
+that has the highest priority thread in the semaphores’ list of waiters. 
 
-For 1, we unblock the thread with the highest priority from the list of waiters for that semaphore. We use the list_max function on semaphore.waiter with thread_compare_priority which is of type list_less_func. Thread compare priority takes in two threads, a and b, and returns true iff the priority of thread a is <=  priority of thread b, otherwise false. 
+For 1, we unblock the thread with the highest priority from the list of waiters for that semaphore. 
+We use the list_max function on semaphore.waiter with thread_compare_priority which is of type list_less_func. 
+Thread compare priority takes in two threads, a and b, and returns true iff the priority of thread a is <=  priority of thread b, 
+otherwise false. 
 
-For 2,  in order to find the semaphore, that is waiting on a condition, that has the thread of the highest priority we again utilize list_max on the list of cond->waiters with sema_elem_compare_priority as the list_less_func. Since each semaphore in cond->waiters has just 1 thread in it (see *), sema_elem_compare_priority takes two semaphores in returns true iff the priority of the thread in the first semaphore is <= priority of the thread in the second semaphore. 
+For 2,  in order to find the semaphore, that is waiting on a condition, that has the thread of the highest priority 
+we again utilize list_max on the list of cond->waiters with sema_elem_compare_priority as the list_less_func. 
+Since each semaphore in cond->waiters has just 1 thread in it (see *), sema_elem_compare_priority takes two semaphores in returns true 
+iff the priority of the thread in the first semaphore is <= priority of the thread in the second semaphore. 
 
 
 
