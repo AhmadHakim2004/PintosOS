@@ -136,6 +136,8 @@ void thread_yield (void);
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 
+void thread_donate_priority (struct thread *t); 
+
 int thread_get_priority (void);
 void thread_set_priority (int);
 
@@ -146,9 +148,6 @@ int thread_get_load_avg (void);
 
 void insert_sleeping_thread (int64_t);
 void wakeup_ready_sleeping_threads (int64_t);
-
-void
-sort_ready_list (void);
 
 bool thread_compare_priority (const struct list_elem *, 
                               const struct list_elem *, void *);

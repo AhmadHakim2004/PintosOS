@@ -342,6 +342,32 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+void 
+thread_donate_priority (struct thread *t) 
+{
+  if (list_empty (&t->donations)) 
+    {
+      t->priority = t->original_priority;
+      return;
+    }
+
+  struct list_elem * highest_priority_donor = list_back (&t->donations);
+  int max_priority = list_entry (highest_priority_donor, struct thread, 
+                                 donation_elem)->priority;
+  
+  if (t->original_priority > max_priority)
+    t->priority = t->original_priority;
+  else
+    t->priority = max_priority;
+  
+  if (t->waiting_lock != NULL)
+    thread_donate_priority (t->waiting_lock->holder);
+    
+  enum intr_level old_level = intr_disable ();
+  list_sort (&ready_list, thread_compare_priority, NULL);
+  intr_set_level (old_level);
+}
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority) 
@@ -371,12 +397,6 @@ int
 thread_get_priority (void) 
 {
   return thread_current ()->priority;
-}
-
-void
-sort_ready_list () 
-{
-  list_sort (&ready_list, thread_compare_priority, NULL);
 }
 
 /* Sets the current thread's nice value to NICE. */
