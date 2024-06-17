@@ -204,6 +204,30 @@ This allows the next highest-priority thread in line to acquire the lock and pro
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
 
+Potential Race Condition in thread_set_priority
+A race condition in thread_set_priority can occur when multiple threads simultaneously modify shared data structures, 
+such as the donations list or the ready list, leading to inconsistent or incorrect priority values. Specifically, 
+if one thread is setting its priority while another thread is modifying the donations list or the ready list, 
+the resulting priority calculation might be incorrect. This could lead to improper thread scheduling and priority inversion.
+
+Explanation of the Race Condition
+1) Modifying cur->original_priority and cur->priority:
+These assignments are straightforward, but if another thread were to simultaneously read or modify these values, it could result in inconsistent or incorrect priority settings.
+
+2) Accessing and Modifying the Donations List:
+The function accesses the donations list to find the highest priority donor and potentially updates the current thread's priority. 
+If another thread simultaneously adds or removes elements from this list, it could lead to an incorrect priority being set for the current thread.
+
+Our implementation avoid this by Disabling Interrupts:
+
+At the beginning of the function we use
+            enum intr_level old_level;
+            old_level = intr_disable ();  // Disable interrupts to enter critical section
+Interrupts are disabled at the beginning of the function to prevent other threads from preempting and causing race conditions. 
+This ensures that no other thread can modify shared data structures like the donations list or the ready list while the current thread is setting its priority.
+
+
+
 ---- RATIONALE ----
 
 >> B7: Why did you choose this design?  In what ways is it superior to
