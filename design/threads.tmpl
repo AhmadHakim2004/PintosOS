@@ -30,26 +30,106 @@ Syed Asad Hussain asadh.syed@mail.utoronto.ca
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct thread
+  {
+    /* Owned by thread.c. */
+    tid_t tid;                          /* Thread identifier. */
+    enum thread_status status;          /* Thread state. */
+    char name[16];                      /* Name (for debugging purposes). */
+    uint8_t *stack;                     /* Saved stack pointer. */
+    int priority;                       /* Priority. */
+    int64_t wakeup_tick;                /* Tick to wakeup at. */
+    struct list_elem allelem;           /* List element for all threads list. */
+
+    /* Shared between thread.c and synch.c. */
+    struct list_elem elem;              /* List element. */
+
+    struct lock *waiting_lock;          /* Lock that the thread is waiting on. */
+    int original_priority;              /* Priority. */
+    struct list donations;              /* List of donations. */
+    struct list_elem donation_elem;     /* List element for donations list. */
+
+#ifdef USERPROG
+    /* Owned by userprog/process.c. */
+    uint32_t *pagedir;                  /* Page directory. */
+#endif
+    /* Owned by thread.c. */
+    unsigned magic;                     /* Detects stack overflow. */
+  };
+
+Newly addded:
+Field: int64_t wakeup_tick;
+Purpose: The OS tick which the sleeping thread should wake up at.
+
+Static variable: static struct list sleeping_list;
+Purpose: A list that holds all the sleeping threads.
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe what happens in a call to timer_sleep(),
 >> including the effects of the timer interrupt handler.
 
+When a thread calls timer_sleep():
+1) timer_ticks() is called to get the # of timer ticks since the OS booted.
+Then insert_sleeping_thread() is called with the # of timer ticks since the OS booted + the # of ticks we want the thread to sleep for as parameter.
+
+2) insert_sleeping_thread() disables interrupts and sets the current thread's wake up tick to the wakeup_tick parameter passed,
+   Then it inserts the current thread into the list of sleeping threads in ascending order according to their wakeup tick, and blocks it. 
+   In the end it sets the interrupt level to the level it was before execution.
+
+When the timer interrupt occurs:
+1) it updates the OS ticks and calls wakeup_ready_sleeping_threads() with the OS ticks as parameter.
+
+2) wakeup_ready_sleeping_threads() disables interrupts and since the list of sleeping threads are ordered by wakeup_tick,
+   it loops over the list until it reaches the end or a sleeping thread that isn't ready to wakeup yet, and for each loop iteration it:
+   sets the wakeup_tick of the thread to -1, remove it from the list, and unblock the thread. (Wakes up the thread)
+   In the end it sets the interrupt level to the level it was before execution.
+
+
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
+
+Whenever a thread is put to sleep, we insert it to the sleeping_list in ascending order according to their wakeup tick.
+Therefore when the timer_interrupt occurs and we need to find the sleeping threads that are ready to wakeup,
+we only need to look at the beginning of the list, if the first thread is ready, we wake it up and look at the next thread and so on,
+but as soon as we find a thread that isn't ready, we don't need to look anymore and we can terminate the loop.
 
 ---- SYNCHRONIZATION ----
 
 >> A4: How are race conditions avoided when multiple threads call
 >> timer_sleep() simultaneously?
 
+When we call timer_sleep(), we insert the current thread into the list of sleeping threads. 
+This can cause race conditions when multiple threads attempt to get inserted to the list therefore to avoid that:
+We disabled the interrupts at the start of the insert_sleeping_thread function which performs the insertion,
+and set it back to the old level when it finishes execution, thus avoiding multiple threads trying to get inserted at the same time.
+
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
+
+When a timer interrupt occurs, it removes some threads from the sleeping_list if applicable, if that happens during a call to timer_sleep()
+We'll have the timer interrupt trying to remove elements from the list, and the timer_sleep() trying to insert an element to the list simultaneously
+Therefore as mentioned in A4, we disabled interrupts when inserting the current thread to the sleeping_list in timer_sleep, 
+meaning the timer interrupt handler will only execute after the interrupts are reenabled (after the current thread is inserted to the list).
 
 ---- RATIONALE ----
 
 >> A6: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+The way we first implemented it was by creating a seperate struct called sleeping_thread that held a pointer to a thread (the sleeping thread)
+a semaphore and the wake up tick. The idea was to not include the wakeup_tick field in the thread struct since it won't be used by normal threads(only sleeping threads)
+and have the semaphore handle blocking and unblocking the thread rather than calling thread_block and thread_unblock.
+
+However we ended up deciding to go with the current design of modifying the thread struct itself instead of creating a new struct
+as it added extra space complexity to initialize and store the new structs that wasn't worth it compared to adding a 1 field to the existing struct.
+We had the same reasoning for choosing to opt out of using a semaphore as it added both space complexity and made the algorithm harder to understand.
+
+We also started with inserting the sleeping threads to the back of the sleeping threads list, and when waking up the ready sleeping threads in the timer interrupt handler, 
+we would loop over the whole list and remove all the threads that are ready to wakeup and unblock them, but when going over this design document, specifically question A3,
+we thought how we could minimize the amount of time spent in the timer interrupt handler and we decided to keep the sleeping_list sorted when inserting new threads,
+so that we only have to keep checking the first thread in the list if it's ready to wake up, if so we remove and unblock it and check the new first element, and as soon as
+the first element is not ready to wake up, we can stop checking the list's.
 
              PRIORITY SCHEDULING
              ===================

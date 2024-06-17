@@ -366,10 +366,43 @@ thread_donate_priority (struct thread *t)
     t->priority = max_priority;
   
   if (t->waiting_lock != NULL)
+  {
+    update_donors (t, t->waiting_lock);
     thread_donate_priority (t->waiting_lock->holder);
-    
+  } 
   enum intr_level old_level = intr_disable ();
   list_sort (&ready_list, thread_compare_priority, NULL);
+  intr_set_level (old_level);
+}
+
+/* This function adds the thread t as a donor for the lock holder if it's the 
+highest priority waiter on this lock */
+void update_donors (struct thread *t, struct lock *lock) 
+{
+  enum intr_level old_level = intr_disable ();
+  // If there are no waiters on this lock
+  if (list_empty(&lock->semaphore.waiters))
+    list_insert_ordered(&lock->holder->donations, &t->donation_elem, 
+                        thread_compare_priority, NULL);
+  else 
+    {
+      // If there are waiters on this lock 
+      struct list_elem * max_pri_waiter = list_max(&lock->semaphore.waiters, 
+                                                   thread_compare_priority, 
+                                                   NULL);
+
+      if (list_entry (max_pri_waiter, struct thread, elem)->priority 
+          < t->priority) 
+        {
+          // Remove the highest priority waiter from the lock holder's 
+          // donations list since it is no longer the highest priority 
+          // for the lock holder
+          list_remove(&list_entry (max_pri_waiter, struct thread, 
+                                   elem)->donation_elem);
+          list_insert_ordered(&lock->holder->donations, &t->donation_elem, 
+                              thread_compare_priority, NULL);
+        }   
+    } 
   intr_set_level (old_level);
 }
 
