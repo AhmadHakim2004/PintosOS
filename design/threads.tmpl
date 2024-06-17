@@ -254,6 +254,24 @@ iff the priority of the thread in the first semaphore is <= priority of the thre
 >> B4: Describe the sequence of events when a call to lock_acquire()
 >> causes a priority donation.  How is nested donation handled?
 
+Priority donation happens when a thread calls lock_acquire() on a lock that already has a holder. In this case:
+
+1) The current's thread waiting_lock field is set to the lock it's trying to acquire.
+
+2) update_donors() is called to insert the current thread to the lock holder's list of donors in two cases:
+    a) When the current thread is the only waiter on this lock
+    b) When the current thread is the highest priority waiter on this lock
+   This is because a lock holder should only get a donation from a specific lock through its highest priority waiter (the other waiters' donations won't have an affect)
+   Therefore in case b) the previous highest priority waiter will be removed from the list of donations and replaced by the current thread.
+
+3) thread_donate_priority() is called which compares the lock holder's original priority with the highest priority donor and set its actual priority to the maximum of the two.
+
+Nested donation is handled in the thread_donate_priority() function:
+
+After the lock holder's actual priority is set to the maximum of its original priority and highest priority donor, the lock holder may be waiting on a lock itself, call it lock2,
+and if so, it should update the donors of the holder of lock2 (in case it became the highest priority waiter for lock2), then call thread_donate_priority again
+to donate its new priority to lock2's holder which will result in nested donations
+
 >> B5: Describe the sequence of events when lock_release() is called
 >> on a lock that a higher-priority thread is waiting for.
 
