@@ -346,7 +346,15 @@ highest priority with respect to all the other waiting threads. To do this, we r
 ready_list to pop the thread with the highest priority instead of first sorting it and popping the last thread out.
 List_max runs in O(n) time and so our design was much more efficient. 
 
-@ansh please explain the rationale behind priority donation design
+For priority donation, we chose to manage a list of threads that could potentially donate their priority to the current thread, 
+specifically maintaining the highest priority thread waiting for each lock held by the current thread. This design was chosen for its efficiency, 
+simplicity, and effectiveness. By maintaining only the highest priority thread for each lock in the donations list, we minimize the overhead associated 
+with managing donations, ensuring that priority updates are handled efficiently without unnecessary complexity. This approach simplifies the priority 
+donation mechanism by focusing only on the highest priority donor. Additionally, it effectively prevents priority inversion by ensuring that high-priority 
+threads are not unduly delayed. We considered a more complex design involving all donor threads, but it introduced significant overhead and complexity. 
+Our chosen design strikes a balance between simplicity and effectiveness, providing an optimal solution for 
+managing priority donation in an efficient and straightforward manner.
+
 
                SURVEY QUESTIONS
                ================
