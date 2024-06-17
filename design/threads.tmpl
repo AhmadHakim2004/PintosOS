@@ -226,7 +226,10 @@ At the beginning of the function we use
 Interrupts are disabled at the beginning of the function to prevent other threads from preempting and causing race conditions. 
 This ensures that no other thread can modify shared data structures like the donations list or the ready list while the current thread is setting its priority.
 
-
+Locks can be used to avoid this race condition by ensuring mutual exclusion when modifying thread priorities. Specifically, when a thread calls thread_set_priority, 
+it would first acquire a lock to enter the critical section, preventing other threads from simultaneously accessing shared data structures. After modifying the priorities, 
+the thread would release the lock, allowing other threads to proceed. This method ensures that only one thread can modify priorities at a time, effectively preventing race conditions. 
+However, to prevent interruptions during the lock operations, the lock acquire and release functions must disable interrupts within their critical sections.
 
 ---- RATIONALE ----
 
