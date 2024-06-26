@@ -20,6 +20,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static void setup_args(char *save_ptr , void **esp, char *file_name);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -33,13 +34,28 @@ process_execute (const char *file_name)
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
+    
+  //why are we making a copy of the file name and args in a page?
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  //parse the string of the file name and pass the file name to thread_create
+  //copying file name to new MODIFIABLE string
+  int file_name_length = strlen(file_name) + 1;
+  char file_name_copied[file_name_length];    
+  strlcpy(file_name_copied, file_name, sizeof(file_name_copied));
+
+  printf ("pe_name: '%s'\n", file_name_copied);
+    
+  char *save_ptr;
+  char *parsed_file_name_only = strtok_r(file_name_copied, " ", &save_ptr);
+  printf ("parsed_file_name_only: '%s'\n", parsed_file_name_only);
+
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (parsed_file_name_only, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -47,10 +63,26 @@ process_execute (const char *file_name)
 
 /* A thread function that loads a user process and starts it
    running. */
+
 static void
 start_process (void *file_name_)
 {
-  char *file_name = file_name_;
+  //parse file name and args
+
+  int file_name_length = strlen(file_name_) + 1;
+  char file_name_copied[file_name_length];    
+  strlcpy(file_name_copied, file_name_, sizeof(file_name_copied));
+
+
+  printf("start_process:'%s'\n", file_name_);  
+
+  char *save_ptr;
+  
+  char *file_name = strtok_r (file_name_, " ", &save_ptr);
+  printf("start_process file name:'%s'\n", file_name);
+
+
+
   struct intr_frame if_;
   bool success;
 
@@ -59,12 +91,33 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+
   success = load (file_name, &if_.eip, &if_.esp);
 
+  if(success)
+    {
+      //set up stack here !!!! 
+      //current stack top &if_.esp
+      //start from  &if_.esp-4
+  
+      setup_args(save_ptr, &if_.esp, file_name_copied);
+        
+      //can check if stack is set up correctly using hex_dump
+      hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
+
+    }
+
+
   /* If load failed, quit. */
-  palloc_free_page (file_name);
+  palloc_free_page (file_name); // we need to free this regardless becauese its
+  //not needed anymore
   if (!success) 
     thread_exit ();
+
+
+
+
+
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -74,6 +127,67 @@ start_process (void *file_name_)
      and jump to it. */
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
+}
+
+static void
+setup_args(char *save_ptr, void **esp, char *file_name){ 
+
+  char *file_name_arr[strlen(file_name)];
+  int argc = 0;
+  char *token;
+
+  for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;
+       token = strtok_r (NULL, " ", &save_ptr))
+    {
+      file_name_arr[argc] = token;
+      argc++;
+    }
+
+  
+  *esp = *esp - 4;
+
+  for(int i  = argc - 1; i >= 0; i--)
+    {
+      printf("filennamarr: '%s' - '%d'\n", file_name_arr[i], 
+      strlen(file_name_arr[i]));
+      
+      int arg_len = strlen(file_name_arr[i]) + 1;
+      *esp -= arg_len;
+      memcpy (*esp, file_name_arr[i], arg_len);
+      file_name_arr[i] = *esp;
+
+      printf("%d..%p....%s\n", esp, *esp, *esp);
+    }
+
+  //word align
+  int word_align_offset = 4 - ((int)(*esp) % 4);
+  *esp -= word_align_offset;
+  memset(*esp, 0, word_align_offset);
+
+  *esp = *esp - 4;
+  memset(*esp, 0, 4); //sentinel
+
+  //push address of args to stack
+  for(int i  = argc - 1; i >= 0; i--)
+    {
+      *esp -= sizeof (char *);
+      memcpy (*esp, &file_name_arr[i],  sizeof (char *));
+    }
+
+  //argv
+  void *dummy = *esp;
+  *esp = *esp - sizeof (void *);
+  memcpy(*esp, &dummy, sizeof (void *));
+
+  //argc
+  *esp = *esp - 4;
+  memset(*esp, argc, 1);
+
+  //return address
+  *esp = *esp -  4;
+  memset (*esp, 0, 4);
+
+
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -88,6 +202,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  while(1){}
   return -1;
 }
 
