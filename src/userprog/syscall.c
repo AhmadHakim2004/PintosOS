@@ -6,6 +6,8 @@
 #include "threads/vaddr.h"
 #include "pagedir.h"
 #include "devices/shutdown.h"
+#include "threads/synch.h"
+#include "process.h"
 
 static void syscall_handler (struct intr_frame *);
 static void halt_handler (void);
@@ -113,6 +115,13 @@ halt_handler ()
 static void 
 exit_handler (int status)
 {  
+  struct child_thread_info *cti = find_cti (thread_current()->parent, 
+                                            thread_current ()->tid);
+  cti->exit_status = status;
+  cti->exited = true;
+  sema_up (&cti->exit_sema);
+
+  printf ("%s: exit(%d)\n", thread_current ()->name, status);
   thread_exit ();
 }
 
