@@ -22,6 +22,7 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static void setup_args(char *save_ptr , void **esp, char *file_name);
+static void init_process_control_block(struct thread *t);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -56,6 +57,19 @@ process_execute (const char *file_name)
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
+}
+
+/* Initialize process control block for thread t */
+static void 
+init_process_control_block (struct thread *t)
+{
+  struct pcb *pcb = malloc(sizeof(struct pcb));
+  pcb->parent_thread = thread_current();
+  pcb->process_thread = t;
+
+  #ifdef USERPROG
+  t->pcb = pcb;
+  #endif
 }
 
 /* A thread function that loads a user process and starts it
@@ -120,7 +134,8 @@ start_process (void *file_name_)
 }
 
 static void
-setup_args(char *save_ptr, void **esp, char *file_name){ 
+setup_args(char *save_ptr, void **esp, char *file_name)
+{ 
 
   char *file_name_arr[strlen(file_name)];
   int argc = 0;
