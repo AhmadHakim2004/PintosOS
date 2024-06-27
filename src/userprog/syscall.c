@@ -3,6 +3,8 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "pagedir.h"
 
 static void syscall_handler (struct intr_frame *);
 static void halt_handler (void);
@@ -34,6 +36,11 @@ syscall_handler (struct intr_frame *f)
   void *arg2 = f->esp+8;
   void *arg3 = f->esp+12;
 
+  if (!is_valid_pointer (interrupt_code) 
+      || (*interrupt_code != 0 && !is_valid_pointer (arg1)))
+    {
+      exit_handler (-1);
+    }
   switch (*interrupt_code)
     {
       case 0:
@@ -49,6 +56,10 @@ syscall_handler (struct intr_frame *f)
         f->eax = wait_handler (*(int *)arg1);
         break;
       case 4:
+        if (!is_valid_pointer (arg2))
+          {
+            exit_handler (-1);
+          }
         f->eax = create_handler (*(char **)arg1, *(unsigned *)arg2);
         break;
       case 5:
@@ -61,12 +72,24 @@ syscall_handler (struct intr_frame *f)
         f->eax = filesize_handler (*(int *)arg1);
         break;
       case 8:
+        if (!is_valid_pointer (arg2) || !is_valid_pointer (arg3))
+          {
+            exit_handler (-1);
+          }
         f->eax = read_handler (*(int *)arg1, *(char **)arg2, *(unsigned *)arg3);
         break;
       case 9:
+        if (!is_valid_pointer (arg2) || !is_valid_pointer (arg3))
+          {
+            exit_handler (-1);
+          }
         f->eax = write_handler (*(int *)arg1, *(char **)arg2, *(unsigned *)arg3);
         break;
       case 10:
+        if (!is_valid_pointer (arg2))
+          {
+            exit_handler (-1);
+          }
         seek_handler (*(int *)arg1, *(unsigned *)arg2);
         break;
       case 11:
@@ -165,4 +188,14 @@ static void
 close_handler (int fd)
 {
   printf("close_handler not implemented yet");
+}
+
+static bool 
+is_valid_pointer (void *p)
+{
+  return p != NULL 
+         && is_user_vaddr (p) 
+         && pagedir_get_page (thread_current ()->pagedir, p) != NULL 
+         && is_user_vaddr (p+3) 
+         && pagedir_get_page (thread_current ()->pagedir, p+3) != NULL;
 }
