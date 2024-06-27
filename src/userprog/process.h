@@ -9,12 +9,21 @@ void process_exit (void);
 void process_activate (void);
 
 /* Process Control Block Struct */
+struct fds
+  {
+    int fd;
+    char *file_name;
+    struct list_elem elem;
+  };
+
 struct pcb
 	{
 		struct thread *parent_thread;
 		struct thread *process_thread;
 		struct list_elem elem;
-		struct file *file;
+		struct file *file; //needed?
+    struct list fd_table;
+    int highest_fd;
 	};
 	
 

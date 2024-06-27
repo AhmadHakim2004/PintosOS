@@ -54,8 +54,13 @@ process_execute (const char *file_name)
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (parsed_file_name_only, PRI_DEFAULT, start_process, fn_copy);
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+
+  //set up process control block for this new process
+  init_process_control_block(tid);
+
   return tid;
 }
 
@@ -66,6 +71,8 @@ init_process_control_block (struct thread *t)
   struct pcb *pcb = malloc(sizeof(struct pcb));
   pcb->parent_thread = thread_current();
   pcb->process_thread = t;
+  pcb->highest_fd = 1;
+  list_init(&pcb->fd_table);  
 
   #ifdef USERPROG
   t->pcb = pcb;
