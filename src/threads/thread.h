@@ -110,6 +110,8 @@ struct child_thread_info
       tid_t tid;
       int exit_status;
       bool exited;
+      bool loaded;
+      struct semaphore load_sema;
       struct semaphore exit_sema;
       struct list_elem elem;              /* List element. */
    };

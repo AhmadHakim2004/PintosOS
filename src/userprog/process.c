@@ -84,6 +84,11 @@ start_process (void *file_name_)
 
   success = load (file_name, &if_.eip, &if_.esp);
 
+  struct child_thread_info *cti = find_cti (thread_current()->parent, 
+                                            thread_current ()->tid);
+  cti->loaded = success;
+  sema_up (&cti->load_sema);
+
   if(success)
     {
       //set up stack here !!!! 
