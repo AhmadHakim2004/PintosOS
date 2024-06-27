@@ -226,6 +226,10 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
+
+  //free pcb struct
+  free(cur->pcb);
+
   uint32_t *pd;
 
   /* Destroy the current process's page directory and switch back
