@@ -214,6 +214,11 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  #ifdef USERPROG
+    //set up process control block for this new process
+    init_process_control_block(t);
+  #endif
+
   /* Add to run queue. */
   thread_unblock (t);
 
