@@ -98,6 +98,8 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  initial_thread->parent = NULL;
+  list_init (&initial_thread->children);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -182,6 +184,18 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+  t->parent = thread_current ();
+  list_init (&t->children);
+
+  struct child_thread_info *cti = palloc_get_page (PAL_ZERO);
+  memset (cti, 0, sizeof *cti);
+  cti->tid = t->tid;
+  cti->exit_status = -1;
+  cti->exited = false;
+  cti->loaded = false;
+  sema_init (&cti->exit_sema, 1);
+  sema_down (&cti->exit_sema);
+  list_push_back (&thread_current ()->children, &cti->elem);
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -374,6 +388,28 @@ thread_get_recent_cpu (void)
 {
   /* Not yet implemented. */
   return 0;
+}
+
+struct list_elem *
+find_cti_elem (struct thread *parent, tid_t child_tid)
+{
+  struct child_thread_info *cti;
+  for (struct list_elem *e = list_begin (&parent->children); 
+       e != list_end (&parent->children); e = list_next (e))
+        {
+          cti = list_entry (e, struct child_thread_info, elem);
+          if (cti->tid == child_tid)
+            return e;
+        }
+
+  return NULL;
+}
+
+struct child_thread_info *
+find_cti (struct thread *parent, tid_t child_tid)
+{
+  struct list_elem *e = find_cti_elem (parent, child_tid);
+  return (e == NULL) ? NULL : list_entry (e, struct child_thread_info, elem);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.

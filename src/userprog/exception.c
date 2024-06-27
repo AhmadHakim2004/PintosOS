@@ -81,6 +81,9 @@ kill (struct intr_frame *f)
      
   /* The interrupt frame's code segment value tells us where the
      exception originated. */
+   struct child_thread_info *cti = find_cti (thread_current()->parent, 
+                                             thread_current ()->tid);
+   sema_up (&cti->exit_sema);
   switch (f->cs)
     {
     case SEL_UCSEG:

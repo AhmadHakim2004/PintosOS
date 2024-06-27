@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -183,8 +184,21 @@ setup_args(char *save_ptr, void **esp, char *file_name){
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(1){}
-  return -1;
+  if (child_tid == TID_ERROR)
+    return -1;
+    
+  struct list_elem *ce = find_cti_elem (thread_current(), child_tid);
+  if (ce == NULL)
+    return -1;
+
+  struct child_thread_info *cti = list_entry (ce, struct child_thread_info, 
+                                              elem);
+  sema_down (&cti->exit_sema);
+  if (!cti->exited)
+    return -1;
+  
+  list_remove (ce);
+  return cti->exit_status;
 }
 
 /* Free the current process's resources. */
