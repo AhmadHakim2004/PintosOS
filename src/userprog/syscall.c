@@ -5,6 +5,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "pagedir.h"
+#include "devices/shutdown.h"
 
 static void syscall_handler (struct intr_frame *);
 static void halt_handler (void);
@@ -106,7 +107,7 @@ syscall_handler (struct intr_frame *f)
 static void 
 halt_handler ()
 {
-  printf("halt_handler not implemented yet");
+  shutdown_power_off ();
 }
 
 static void 
@@ -167,7 +168,11 @@ read_handler (int fd, char *buffer, unsigned length)
 static int 
 write_handler (int fd, char *buffer, unsigned length)
 {
-  printf("write_handler not implemented yet");
+  if (fd == 1)
+    {
+      putbuf (buffer, length);
+      return length;
+    }
   return -1;
 }
 
