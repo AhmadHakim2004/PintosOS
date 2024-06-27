@@ -9,6 +9,7 @@
 #include "threads/synch.h"
 #include "process.h"
 #include "filesys/filesys.h"
+#include "threads/malloc.h"
 
 static void syscall_handler (struct intr_frame *);
 static void halt_handler (void);
@@ -167,8 +168,32 @@ remove_handler (char *file)
 static int 
 open_handler (char *file)
 {
-  printf("open_handler not implemented yet");
-  return -1;
+
+  if(!is_valid_pointer (file))
+    {
+      exit_handler (-1);
+    }
+
+  struct file *fp = filesys_open (file);
+
+  if(fp == NULL)
+    {
+      return -1;
+    }
+
+  struct pcb *pcb = thread_current () -> pcb;
+  
+  struct fds *fd_table_entry = malloc (sizeof(struct fds));
+
+  fd_table_entry->fd = pcb->highest_fd + 1;
+  fd_table_entry->file_name = file;
+  fd_table_entry->fp = fp;
+  
+  //increase highest fd of process
+  pcb->highest_fd += 1;
+
+  list_push_back(&pcb->fd_table, &fd_table_entry->elem);
+  return fd_table_entry->fd;
 }
 
 static int 

@@ -18,11 +18,11 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/synch.h"
+#include "threads/malloc.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static void setup_args(char *save_ptr , void **esp, char *file_name);
-static void init_process_control_block(struct thread *t);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -58,14 +58,12 @@ process_execute (const char *file_name)
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
 
-  //set up process control block for this new process
-  init_process_control_block(tid);
 
   return tid;
 }
 
 /* Initialize process control block for thread t */
-static void 
+void 
 init_process_control_block (struct thread *t)
 {
   struct pcb *pcb = malloc(sizeof(struct pcb));
@@ -75,7 +73,7 @@ init_process_control_block (struct thread *t)
   list_init(&pcb->fd_table);  
 
   #ifdef USERPROG
-  t->pcb = pcb;
+    t->pcb = pcb;
   #endif
 }
 
