@@ -149,11 +149,11 @@ wait_handler (int pid)
 static bool 
 create_handler (char *file, unsigned initial_size)
 {
-  if(file == NULL)
+  if(!is_valid_pointer(file))
     {
       exit_handler (-1);
     }
-    
+
   return filesys_create(file, initial_size);
 }
 
