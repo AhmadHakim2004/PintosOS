@@ -128,15 +128,21 @@ exit_handler (int status)
 static int 
 exec_handler (char *file)
 {
-  printf("exec_handler not implemented yet");
-  return -1;
+  if (is_valid_pointer (file))
+  {
+    int tid = process_execute (file);
+    struct child_thread_info *cti = find_cti (thread_current(), tid);
+    sema_down (&cti->load_sema);
+    return (cti->loaded) ? tid : -1;
+  }
+  else 
+    exit_handler (-1); 
 }
 
 static int 
 wait_handler (int pid)
 {
-  printf("wait_handler not implemented yet");
-  return -1;
+  return process_wait (pid);
 }
 
 static bool 

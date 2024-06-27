@@ -193,7 +193,9 @@ thread_create (const char *name, int priority,
   cti->exit_status = -1;
   cti->exited = false;
   cti->loaded = false;
+  sema_init (&cti->load_sema, 1);
   sema_init (&cti->exit_sema, 1);
+  sema_down (&cti->load_sema);
   sema_down (&cti->exit_sema);
   list_push_back (&thread_current ()->children, &cti->elem);
 
