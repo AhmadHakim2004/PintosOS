@@ -8,6 +8,7 @@
 #include "devices/shutdown.h"
 #include "threads/synch.h"
 #include "process.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 static void halt_handler (void);
@@ -148,8 +149,12 @@ wait_handler (int pid)
 static bool 
 create_handler (char *file, unsigned initial_size)
 {
-  printf("create_handler not implemented yet");
-  return false;
+  if(file == NULL)
+    {
+      exit_handler (-1);
+    }
+    
+  return filesys_create(file, initial_size);
 }
 
 static bool 
