@@ -46,13 +46,9 @@ process_execute (const char *file_name)
   int file_name_length = strlen(file_name) + 1;
   char file_name_copied[file_name_length];    
   strlcpy(file_name_copied, file_name, sizeof(file_name_copied));
-
-  printf ("pe_name: '%s'\n", file_name_copied);
     
   char *save_ptr;
   char *parsed_file_name_only = strtok_r(file_name_copied, " ", &save_ptr);
-  printf ("parsed_file_name_only: '%s'\n", parsed_file_name_only);
-
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (parsed_file_name_only, PRI_DEFAULT, start_process, fn_copy);
@@ -73,15 +69,8 @@ start_process (void *file_name_)
   char file_name_copied[file_name_length];    
   strlcpy(file_name_copied, file_name_, sizeof(file_name_copied));
 
-
-  printf("start_process:'%s'\n", file_name_);  
-
   char *save_ptr;
-  
   char *file_name = strtok_r (file_name_, " ", &save_ptr);
-  printf("start_process file name:'%s'\n", file_name);
-
-
 
   struct intr_frame if_;
   bool success;
@@ -99,12 +88,7 @@ start_process (void *file_name_)
       //set up stack here !!!! 
       //current stack top &if_.esp
       //start from  &if_.esp-4
-  
       setup_args(save_ptr, &if_.esp, file_name_copied);
-        
-      //can check if stack is set up correctly using hex_dump
-      hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
-
     }
 
 
@@ -148,15 +132,12 @@ setup_args(char *save_ptr, void **esp, char *file_name){
 
   for(int i  = argc - 1; i >= 0; i--)
     {
-      printf("filennamarr: '%s' - '%d'\n", file_name_arr[i], 
-      strlen(file_name_arr[i]));
+      strlen(file_name_arr[i]);
       
       int arg_len = strlen(file_name_arr[i]) + 1;
       *esp -= arg_len;
       memcpy (*esp, file_name_arr[i], arg_len);
       file_name_arr[i] = *esp;
-
-      printf("%d..%p....%s\n", esp, *esp, *esp);
     }
 
   //word align
@@ -343,6 +324,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
+  file_deny_write (file);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
