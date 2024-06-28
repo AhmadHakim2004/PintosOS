@@ -176,8 +176,10 @@ remove_handler (char *file)
         exit_handler (-1);
     }
 
-  //add lock 
-  return filesys_remove(file);
+  lock_acquire (&lock);
+  bool result = filesys_remove(file);
+  lock_release (&lock);
+  return result;
 }
 
 static int 
@@ -222,7 +224,10 @@ filesize_handler (int fd)
       exit_handler (-1);
     }
   
-  return file_length(fp);
+  lock_acquire (&lock);
+  int result = file_length(fp);
+  lock_release (&lock);
+  return result;
 }
 
 static int 
@@ -296,8 +301,9 @@ seek_handler (int fd, unsigned position)
       exit_handler (-1);
     }
 
-  //add lock
+  lock_acquire (&lock);
   file_seek(fp, position);
+  lock_release (&lock);
 }
 
 static unsigned 
@@ -310,7 +316,10 @@ tell_handler (int fd)
       exit_handler (-1);
     }
   
-  return file_tell(fp);
+  lock_acquire (&lock);
+  unsigned result = file_tell(fp);
+  lock_release (&lock);
+  return result;
 }
 
 static void 
