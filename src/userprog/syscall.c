@@ -10,6 +10,7 @@
 #include "threads/synch.h"
 #include "process.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
 #include "threads/malloc.h"
 #include "filesys/file.h"
 
@@ -126,6 +127,8 @@ exit_handler (int status)
                                             thread_current ()->tid);
   cti->exit_status = status;
   cti->exited = true;
+
+  // close_files ();
   sema_up (&cti->exit_sema);
 
   printf ("%s: exit(%d)\n", thread_current ()->name, status);
@@ -180,7 +183,6 @@ remove_handler (char *file)
 static int 
 open_handler (char *file)
 {
-
   if(!is_valid_pointer (file))
     {
       exit_handler (-1);
@@ -250,8 +252,10 @@ read_handler (int fd, char *buffer, unsigned size)
       return -1;
     }
   
-  return file_read(fp, buffer, size);
-
+  lock_acquire (&lock);
+  int read_length = file_read(fp, buffer, size);
+  lock_release (&lock);
+  return read_length;
 }
 
 static int 
@@ -297,7 +301,15 @@ tell_handler (int fd)
 static void 
 close_handler (int fd)
 {
-  printf("close_handler not implemented yet");
+  struct list_elem *file_elem = get_file_elem_from_fd (fd);
+  if (file_elem == NULL)
+    return;
+  struct fds *fds = list_entry (file_elem, struct fds, elem);
+  lock_acquire (&lock);
+  file_close (fds->fp);
+  lock_release (&lock);
+  list_remove (file_elem);
+  free (fds);
 }
 
 static bool 
