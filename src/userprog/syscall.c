@@ -261,12 +261,27 @@ read_handler (int fd, char *buffer, unsigned size)
 static int 
 write_handler (int fd, char *buffer, unsigned length)
 {
+  if (!is_valid_pointer (buffer))
+    {
+      exit_handler (-1);
+    }
   if (fd == 1)
     {
       putbuf (buffer, length);
       return length;
     }
-  return -1;
+  
+  struct file *fp = get_file_from_fd(fd);
+
+  if (fp == NULL)
+    {
+      return -1;
+    }
+  
+  lock_acquire (&lock);
+  int write_length = file_write(fp, buffer, length);
+  lock_release (&lock);
+  return write_length;
 }
 
 static void 
