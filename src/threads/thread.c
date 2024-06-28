@@ -187,11 +187,9 @@ thread_create (const char *name, int priority,
   t->parent = thread_current ();
   list_init (&t->children);
 
-  struct child_thread_info *cti = palloc_get_page (PAL_ZERO);
-  memset (cti, 0, sizeof *cti);
+  struct child_thread_info *cti = malloc (sizeof (struct child_thread_info));
   cti->tid = t->tid;
   cti->exit_status = -1;
-  cti->exited = false;
   cti->loaded = false;
   sema_init (&cti->load_sema, 1);
   sema_init (&cti->exit_sema, 1);

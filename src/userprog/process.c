@@ -219,9 +219,6 @@ process_wait (tid_t child_tid UNUSED)
   struct child_thread_info *cti = list_entry (ce, struct child_thread_info, 
                                               elem);
   sema_down (&cti->exit_sema);
-  if (!cti->exited)
-    return -1;
-  
   list_remove (ce);
   return cti->exit_status;
 }
@@ -233,7 +230,11 @@ process_exit (void)
   struct thread *cur = thread_current ();
 
   //free pcb struct
+  close_files ();
   free(cur->pcb);
+
+  struct child_thread_info *cti = find_cti (cur->parent, cur->tid);
+  sema_up (&cti->exit_sema);
 
   uint32_t *pd;
 
