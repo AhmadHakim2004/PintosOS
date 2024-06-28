@@ -6,10 +6,12 @@
 #include "threads/vaddr.h"
 #include "pagedir.h"
 #include "devices/shutdown.h"
+#include "devices/input.h"
 #include "threads/synch.h"
 #include "process.h"
 #include "filesys/filesys.h"
 #include "threads/malloc.h"
+#include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
 static void halt_handler (void);
@@ -199,15 +201,45 @@ open_handler (char *file)
 static int 
 filesize_handler (int fd)
 {
-  printf("filesize_handler not implemented yet");
-  return -1;
+  struct file *fp = get_file_from_fd(fd);
+
+  if(fp == NULL)
+    {
+      exit_handler (-1);
+    }
+  
+  return file_length(fp);
 }
 
 static int 
-read_handler (int fd, char *buffer, unsigned length)
+read_handler (int fd, char *buffer, unsigned size)
 {
-  printf("read_handler not implemented yet");
-  return -1;
+  if (!is_valid_pointer(buffer))
+    {
+      exit_handler (-1);
+    }
+  if (fd ==0)
+    {
+      //read from keyboard
+      int i = 0;
+      char c;
+      while (i < size && (c = input_getc()) != '\n')
+        {
+          buffer[i++] = c;
+        }
+      buffer[i] = '\0';
+      return i; //or return size?
+    }
+
+  struct file *fp = get_file_from_fd(fd);
+
+  if (fp == NULL)
+    {
+      return -1;
+    }
+  
+  return file_read(fp, buffer, size);
+
 }
 
 static int 
@@ -230,8 +262,14 @@ seek_handler (int fd, unsigned postition)
 static unsigned 
 tell_handler (int fd)
 {
-  printf("tell_handler not implemented yet");
-  return -1;
+  struct file *fp = get_file_from_fd(fd);
+
+  if(fp == NULL)
+    {
+      exit_handler (-1);
+    }
+  
+  return file_tell(fp);
 }
 
 static void 

@@ -614,7 +614,7 @@ get_file_from_fd(int fd)
     for (struct list_elem *e = list_begin (&pcb->fd_table); 
          e != list_end (&pcb->fd_table); e = list_next (e))
       {
-        fd_entry = list_entry (e, struct child_thread_info, elem);
+        fd_entry = list_entry (e, struct fds, elem);
         if (fd_entry->fd == fd)
           return fd_entry->fp;
       }
