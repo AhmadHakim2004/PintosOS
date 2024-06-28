@@ -16,7 +16,6 @@
 
 static void syscall_handler (struct intr_frame *);
 static void halt_handler (void);
-static void exit_handler (int);
 static int exec_handler (char *);
 static int wait_handler (int);
 static bool create_handler (char *, unsigned);
@@ -120,19 +119,16 @@ halt_handler ()
   shutdown_power_off ();
 }
 
-static void 
+void 
 exit_handler (int status)
 {  
   struct child_thread_info *cti = find_cti (thread_current()->parent, 
                                             thread_current ()->tid);
   cti->exit_status = status;
-  cti->exited = true;
-
-  // close_files ();
-  sema_up (&cti->exit_sema);
 
   printf ("%s: exit(%d)\n", thread_current ()->name, status);
   thread_exit ();
+  NOT_REACHED ();
 }
 
 static int 
