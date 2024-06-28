@@ -81,8 +81,12 @@ kill (struct intr_frame *f)
      
   /* The interrupt frame's code segment value tells us where the
      exception originated. */
+   #ifdef USERPROG
+      close_files ();
+   #endif
    struct child_thread_info *cti = find_cti (thread_current()->parent, 
                                              thread_current ()->tid);
+   
    sema_up (&cti->exit_sema);
   switch (f->cs)
     {

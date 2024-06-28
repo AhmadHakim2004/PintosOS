@@ -621,3 +621,37 @@ get_file_from_fd(int fd)
 
     return NULL;
   }
+
+struct list_elem*
+get_file_elem_from_fd(int fd)
+  {
+    struct thread *curr = thread_current();
+    struct pcb *pcb = curr->pcb;
+
+    struct fds *fd_entry;
+    for (struct list_elem *e = list_begin (&pcb->fd_table); 
+         e != list_end (&pcb->fd_table); e = list_next (e))
+      {
+        fd_entry = list_entry (e, struct fds, elem);
+        if (fd_entry->fd == fd)
+          return e;
+      }
+
+    return NULL;
+  }
+
+void 
+close_files()
+  {
+    struct thread *curr = thread_current();
+    struct pcb *pcb = curr->pcb;
+
+    struct fds *fd_entry;
+    for (struct list_elem *e = list_begin (&pcb->fd_table); 
+         e != list_end (&pcb->fd_table); e = list_next (e))
+      {
+        fd_entry = list_entry (e, struct fds, elem);
+        file_close (fd_entry->fp);
+        // free(fd_entry); Doesnt work?
+      }
+  }

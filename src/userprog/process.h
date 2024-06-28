@@ -9,6 +9,8 @@ void process_exit (void);
 void process_activate (void);
 void init_process_control_block(struct thread *t);
 struct file* get_file_from_fd(int fd);
+struct list_elem* get_file_elem_from_fd(int fd);
+void close_files(void);
 
 /* Process Control Block Struct */
 struct fds
