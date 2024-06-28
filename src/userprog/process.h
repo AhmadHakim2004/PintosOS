@@ -8,6 +8,7 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 void init_process_control_block(struct thread *t);
+struct file* get_file_from_fd(int fd);
 
 /* Process Control Block Struct */
 struct fds
