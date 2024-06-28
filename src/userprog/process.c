@@ -603,3 +603,21 @@ install_page (void *upage, void *kpage, bool writable)
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
+
+struct file*
+get_file_from_fd(int fd)
+  {
+    struct thread *curr = thread_current();
+    struct pcb *pcb = curr->pcb;
+
+    struct fds *fd_entry;
+    for (struct list_elem *e = list_begin (&pcb->fd_table); 
+         e != list_end (&pcb->fd_table); e = list_next (e))
+      {
+        fd_entry = list_entry (e, struct child_thread_info, elem);
+        if (fd_entry->fd == fd)
+          return fd_entry->fp;
+      }
+
+    return NULL;
+  }
