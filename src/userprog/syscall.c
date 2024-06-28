@@ -259,9 +259,19 @@ write_handler (int fd, char *buffer, unsigned length)
 }
 
 static void 
-seek_handler (int fd, unsigned postition)
+seek_handler (int fd, unsigned position)
 {
-  printf("seek_handler not implemented yet");
+  // printf("seek_handler not implemented yet");
+
+  struct file *fp = get_file_from_fd(fd);
+
+  if(fp == NULL)
+    {
+      exit_handler (-1);
+    }
+
+  //add lock
+  file_seek(fp, position);
 }
 
 static unsigned 
