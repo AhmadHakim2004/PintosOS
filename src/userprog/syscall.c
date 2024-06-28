@@ -163,8 +163,13 @@ create_handler (char *file, unsigned initial_size)
 static bool 
 remove_handler (char *file)
 {
-  printf("remove_handler not implemented yet");
-  return false;
+  if (!is_valid_pointer(file))
+    {
+        exit_handler (-1);
+    }
+
+  //add lock 
+  return filesys_remove(file);
 }
 
 static int 
