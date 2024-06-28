@@ -29,10 +29,13 @@ static unsigned tell_handler (int);
 static void close_handler (int);
 static bool is_valid_pointer (void *);
 
+static struct lock lock;
+
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init (&lock);
 }
 
 static void
@@ -156,8 +159,10 @@ create_handler (char *file, unsigned initial_size)
     {
       exit_handler (-1);
     }
-
-  return filesys_create(file, initial_size);
+  lock_acquire (&lock);
+  bool result = filesys_create(file, initial_size);
+  lock_release (&lock);
+  return result;
 }
 
 static bool 
@@ -181,7 +186,9 @@ open_handler (char *file)
       exit_handler (-1);
     }
 
+  lock_acquire (&lock);
   struct file *fp = filesys_open (file);
+  lock_release (&lock);
 
   if(fp == NULL)
     {
