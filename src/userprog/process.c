@@ -103,10 +103,6 @@ start_process (void *file_name_)
 
   success = load (file_name, &if_.eip, &if_.esp);
 
-  struct child_thread_info *cti = find_cti (thread_current()->parent, 
-                                            thread_current ()->tid);
-  cti->loaded = success;
-  sema_up (&cti->load_sema);
 
   if(success)
     {
@@ -116,17 +112,16 @@ start_process (void *file_name_)
       setup_args(save_ptr, &if_.esp, file_name_copied);
     }
 
+  struct child_thread_info *cti = find_cti (thread_current()->parent, 
+                                            thread_current ()->tid);
+  cti->loaded = success;
+  sema_up (&cti->load_sema);
 
   /* If load failed, quit. */
   palloc_free_page (file_name); // we need to free this regardless becauese its
   //not needed anymore
   if (!success) 
     thread_exit ();
-
-
-
-
-
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -220,7 +215,9 @@ process_wait (tid_t child_tid UNUSED)
                                               elem);
   sema_down (&cti->exit_sema);
   list_remove (ce);
-  return cti->exit_status;
+  int status = cti->exit_status;
+  free (cti);
+  return status;
 }
 
 /* Free the current process's resources. */
@@ -230,7 +227,9 @@ process_exit (void)
   struct thread *cur = thread_current ();
 
   //free pcb struct
+  enum intr_level old_level = intr_disable ();
   close_files ();
+  intr_set_level (old_level);
   free(cur->pcb);
 
   struct child_thread_info *cti = find_cti (cur->parent, cur->tid);
@@ -369,6 +368,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
   file_deny_write (file);
+  #ifdef USERPROG
+    thread_current() -> pcb -> file = file;
+  #endif
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -453,7 +455,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
   return success;
 }
 
@@ -648,11 +649,16 @@ close_files()
     struct pcb *pcb = curr->pcb;
 
     struct fds *fd_entry;
-    for (struct list_elem *e = list_begin (&pcb->fd_table); 
-         e != list_end (&pcb->fd_table); e = list_next (e))
-      {
-        fd_entry = list_entry (e, struct fds, elem);
-        file_close (fd_entry->fp);
-        // free(fd_entry); Doesnt work?
-      }
+    struct list_elem *e = list_begin(&pcb->fd_table);
+
+    while (e != list_end(&pcb->fd_table)) 
+    {
+      struct list_elem *next = list_next (e);
+      fd_entry = list_entry (e, struct fds, elem);
+      file_close (fd_entry->fp);
+      list_remove (e);
+      free (fd_entry);
+      e = next;
+    }
+    file_close (pcb->file);
   }
