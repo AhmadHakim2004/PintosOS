@@ -22,7 +22,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-static void setup_args(char *save_ptr , void **esp, char *file_name);
+static void setup_args (char *save_ptr , void **esp, char *file_name);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -37,27 +37,24 @@ process_execute (const char *file_name)
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
     
-  //why are we making a copy of the file name and args in a page?
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  //parse the string of the file name and pass the file name to thread_create
-  //copying file name to new MODIFIABLE string
-  int file_name_length = strlen(file_name) + 1;
+  /* Parses the file name to name the thread */
+  int file_name_length = strlen (file_name) + 1;
   char file_name_copied[file_name_length];    
-  strlcpy(file_name_copied, file_name, sizeof(file_name_copied));
+  strlcpy (file_name_copied, file_name, sizeof (file_name_copied));
     
   char *save_ptr;
-  char *parsed_file_name_only = strtok_r(file_name_copied, " ", &save_ptr);
+  char *parsed_file_name_only = strtok_r (file_name_copied, " ", &save_ptr);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (parsed_file_name_only, PRI_DEFAULT, start_process, fn_copy);
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
-
 
   return tid;
 }
@@ -66,11 +63,11 @@ process_execute (const char *file_name)
 void 
 init_process_control_block (struct thread *t)
 {
-  struct pcb *pcb = malloc(sizeof(struct pcb));
-  pcb->parent_thread = thread_current();
+  struct pcb *pcb = malloc (sizeof (struct pcb));
+  pcb->parent_thread = thread_current ();
   pcb->process_thread = t;
   pcb->highest_fd = 1;
-  list_init(&pcb->fd_table);  
+  list_init (&pcb->fd_table);  
 
   #ifdef USERPROG
     t->pcb = pcb;
@@ -79,15 +76,13 @@ init_process_control_block (struct thread *t)
 
 /* A thread function that loads a user process and starts it
    running. */
-
 static void
 start_process (void *file_name_)
 {
-  //parse file name and args
-
-  int file_name_length = strlen(file_name_) + 1;
+  //Parse file name
+  int file_name_length = strlen (file_name_) + 1;
   char file_name_copied[file_name_length];    
-  strlcpy(file_name_copied, file_name_, sizeof(file_name_copied));
+  strlcpy (file_name_copied, file_name_, sizeof (file_name_copied));
 
   char *save_ptr;
   char *file_name = strtok_r (file_name_, " ", &save_ptr);
@@ -104,15 +99,13 @@ start_process (void *file_name_)
   success = load (file_name, &if_.eip, &if_.esp);
 
 
-  if(success)
-    {
-      //set up stack here !!!! 
-      //current stack top &if_.esp
-      //start from  &if_.esp-4
-      setup_args(save_ptr, &if_.esp, file_name_copied);
+  if (success)
+    { 
+      /* Sets up arguments on the stack */
+      setup_args (save_ptr, &if_.esp, file_name_copied);
     }
 
-  struct child_thread_info *cti = find_cti (thread_current()->parent, 
+  struct child_thread_info *cti = find_cti (thread_current ()->parent, 
                                             thread_current ()->tid);
   cti->loaded = success;
   sema_up (&cti->load_sema);
@@ -132,11 +125,14 @@ start_process (void *file_name_)
   NOT_REACHED ();
 }
 
+/*Sets up the args passed through CLI on the stack of the user program 
+  using 80x86 calling convention*/
 static void
-setup_args(char *save_ptr, void **esp, char *file_name)
+setup_args (char *save_ptr, void **esp, char *file_name)
 { 
 
-  char *file_name_arr[strlen(file_name)];
+  //push args on stack
+  char *file_name_arr[strlen (file_name)];
   int argc = 0;
   char *token;
 
@@ -148,13 +144,12 @@ setup_args(char *save_ptr, void **esp, char *file_name)
     }
 
   
+  //push address of args pushed above
   *esp = *esp - 4;
 
-  for(int i  = argc - 1; i >= 0; i--)
-    {
-      strlen(file_name_arr[i]);
-      
-      int arg_len = strlen(file_name_arr[i]) + 1;
+  for (int i  = argc - 1; i >= 0; i--)
+    {      
+      int arg_len = strlen (file_name_arr[i]) + 1;
       *esp -= arg_len;
       memcpy (*esp, file_name_arr[i], arg_len);
       file_name_arr[i] = *esp;
@@ -163,32 +158,31 @@ setup_args(char *save_ptr, void **esp, char *file_name)
   //word align
   int word_align_offset = 4 - ((int)(*esp) % 4);
   *esp -= word_align_offset;
-  memset(*esp, 0, word_align_offset);
+  memset (*esp, 0, word_align_offset);
 
+  //push sentinel
   *esp = *esp - 4;
-  memset(*esp, 0, 4); //sentinel
+  memset (*esp, 0, 4); 
 
   //push address of args to stack
-  for(int i  = argc - 1; i >= 0; i--)
+  for (int i  = argc - 1; i >= 0; i--)
     {
       *esp -= sizeof (char *);
       memcpy (*esp, &file_name_arr[i],  sizeof (char *));
     }
 
-  //argv
+  //push argv
   void *dummy = *esp;
   *esp = *esp - sizeof (void *);
-  memcpy(*esp, &dummy, sizeof (void *));
+  memcpy (*esp, &dummy, sizeof (void *));
 
-  //argc
+  //push argc
   *esp = *esp - 4;
-  memset(*esp, argc, 1);
+  memset (*esp, argc, 1);
 
   //return address
   *esp = *esp -  4;
   memset (*esp, 0, 4);
-
-
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -206,7 +200,7 @@ process_wait (tid_t child_tid UNUSED)
   if (child_tid == TID_ERROR)
     return -1;
     
-  struct list_elem *ce = find_cti_elem (thread_current(), child_tid);
+  struct list_elem *ce = find_cti_elem (thread_current (), child_tid);
   if (ce == NULL)
     return -1;
 
@@ -229,7 +223,7 @@ process_exit (void)
   enum intr_level old_level = intr_disable ();
   close_files ();
   intr_set_level (old_level);
-  free(cur->pcb);
+  free (cur->pcb);
 
   struct child_thread_info *cti = find_cti (cur->parent, cur->tid);
   printf ("%s: exit(%d)\n", cur->name, cti->exit_status);
@@ -369,7 +363,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
   file_deny_write (file);
   #ifdef USERPROG
-    thread_current() -> pcb -> file = file;
+    thread_current () -> pcb -> file = file;
   #endif
 
   /* Read and verify executable header. */
@@ -607,27 +601,23 @@ install_page (void *upage, void *kpage, bool writable)
 }
 
 struct file*
-get_file_from_fd(int fd)
+get_file_from_fd (int fd)
   {
-    struct thread *curr = thread_current();
-    struct pcb *pcb = curr->pcb;
-
-    struct fds *fd_entry;
-    for (struct list_elem *e = list_begin (&pcb->fd_table); 
-         e != list_end (&pcb->fd_table); e = list_next (e))
+    struct list_elem* fd_table_entry = get_file_elem_from_fd (fd);
+    if (fd_table_entry != NULL)
       {
-        fd_entry = list_entry (e, struct fds, elem);
-        if (fd_entry->fd == fd)
-          return fd_entry->fp;
+        struct fds* fd_entry = list_entry (fd_table_entry, struct fds, elem);
+        return fd_entry->fp;
       }
-
+    
     return NULL;
+    
   }
 
 struct list_elem*
-get_file_elem_from_fd(int fd)
+get_file_elem_from_fd (int fd)
   {
-    struct thread *curr = thread_current();
+    struct thread *curr = thread_current ();
     struct pcb *pcb = curr->pcb;
 
     struct fds *fd_entry;
@@ -643,15 +633,15 @@ get_file_elem_from_fd(int fd)
   }
 
 void 
-close_files()
+close_files ()
   {
-    struct thread *curr = thread_current();
+    struct thread *curr = thread_current ();
     struct pcb *pcb = curr->pcb;
 
     struct fds *fd_entry;
-    struct list_elem *e = list_begin(&pcb->fd_table);
+    struct list_elem *e = list_begin (&pcb->fd_table);
 
-    while (e != list_end(&pcb->fd_table)) 
+    while (e != list_end (&pcb->fd_table)) 
     {
       struct list_elem *next = list_next (e);
       fd_entry = list_entry (e, struct fds, elem);
