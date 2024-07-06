@@ -89,8 +89,8 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    struct thread *parent;
-    struct list children;
+    struct thread *parent;              /* Parent thread. */
+    struct list children;               /* List of child threads. */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
@@ -108,12 +108,12 @@ struct thread
 
 struct child_thread_info 
    {
-      tid_t tid;
-      int exit_status;
-      bool loaded;
-      struct semaphore load_sema;
-      struct semaphore exit_sema;
-      struct list_elem elem;              /* List element. */
+      tid_t tid;                        /* Thread identifier. */
+      int exit_status;                  /* Exit status. */
+      bool loaded;                      /* Thread's executable load status. */
+      struct semaphore load_sema;       /* Semaphore for executable loading. */
+      struct semaphore exit_sema;       /* Semaphore for thread exiting. */
+      struct list_elem elem;            /* List element. */
    };
 
 /* If false (default), use round-robin scheduler.
