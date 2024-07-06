@@ -396,7 +396,7 @@ thread_get_recent_cpu (void)
 }
 
 struct list_elem *
-find_cti_elem (struct thread *parent, tid_t child_tid)
+find_child_thread_elem (struct thread *parent, tid_t child_tid)
 {
   struct child_thread_info *cti;
   for (struct list_elem *e = list_begin (&parent->children); 
@@ -411,9 +411,9 @@ find_cti_elem (struct thread *parent, tid_t child_tid)
 }
 
 struct child_thread_info *
-find_cti (struct thread *parent, tid_t child_tid)
+find_child_thread (struct thread *parent, tid_t child_tid)
 {
-  struct list_elem *e = find_cti_elem (parent, child_tid);
+  struct list_elem *e = find_child_thread_elem (parent, child_tid);
   return (e == NULL) ? NULL : list_entry (e, struct child_thread_info, elem);
 }
 
