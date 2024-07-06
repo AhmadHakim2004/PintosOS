@@ -15,6 +15,7 @@
 #include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *);
+static void exit_handler (int status);
 static void halt_handler (void);
 static int exec_handler (char *);
 static int wait_handler (int);
@@ -119,14 +120,13 @@ halt_handler ()
   shutdown_power_off ();
 }
 
-void 
+static void 
 exit_handler (int status)
 {  
   struct child_thread_info *cti = find_cti (thread_current()->parent, 
                                             thread_current ()->tid);
   cti->exit_status = status;
 
-  printf ("%s: exit(%d)\n", thread_current ()->name, status);
   thread_exit ();
   NOT_REACHED ();
 }

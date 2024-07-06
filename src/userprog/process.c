@@ -118,8 +118,7 @@ start_process (void *file_name_)
   sema_up (&cti->load_sema);
 
   /* If load failed, quit. */
-  palloc_free_page (file_name); // we need to free this regardless becauese its
-  //not needed anymore
+  palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
 
@@ -233,6 +232,7 @@ process_exit (void)
   free(cur->pcb);
 
   struct child_thread_info *cti = find_cti (cur->parent, cur->tid);
+  printf ("%s: exit(%d)\n", cur->name, cti->exit_status);
   sema_up (&cti->exit_sema);
 
   uint32_t *pd;
