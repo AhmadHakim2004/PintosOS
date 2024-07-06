@@ -105,7 +105,7 @@ start_process (void *file_name_)
       setup_args (save_ptr, &if_.esp, file_name_copied);
     }
 
-  struct child_thread_info *cti = find_cti (thread_current ()->parent, 
+  struct child_thread_info *cti = find_child_thread (thread_current ()->parent, 
                                             thread_current ()->tid);
   cti->loaded = success;
   sema_up (&cti->load_sema);
@@ -200,7 +200,7 @@ process_wait (tid_t child_tid UNUSED)
   if (child_tid == TID_ERROR)
     return -1;
     
-  struct list_elem *ce = find_cti_elem (thread_current (), child_tid);
+  struct list_elem *ce = find_child_thread_elem (thread_current (), child_tid);
   if (ce == NULL)
     return -1;
 
@@ -225,7 +225,7 @@ process_exit (void)
   intr_set_level (old_level);
   free (cur->pcb);
 
-  struct child_thread_info *cti = find_cti (cur->parent, cur->tid);
+  struct child_thread_info *cti = find_child_thread (cur->parent, cur->tid);
   printf ("%s: exit(%d)\n", cur->name, cti->exit_status);
   sema_up (&cti->exit_sema);
 
