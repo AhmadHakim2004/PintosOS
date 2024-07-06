@@ -100,10 +100,8 @@ start_process (void *file_name_)
 
 
   if (success)
-    { 
-      /* Sets up arguments on the stack */
-      setup_args (save_ptr, &if_.esp, file_name_copied);
-    }
+    /* Sets up arguments on the stack */
+    setup_args (save_ptr, &if_.esp, file_name_copied);
 
   struct child_thread_info *cti = find_child_thread (thread_current ()->parent, 
                                             thread_current ()->tid);
@@ -143,7 +141,6 @@ setup_args (char *save_ptr, void **esp, char *file_name)
       argc++;
     }
 
-  
   //push address of args pushed above
   *esp = *esp - 4;
 
@@ -183,6 +180,11 @@ setup_args (char *save_ptr, void **esp, char *file_name)
   //return address
   *esp = *esp -  4;
   memset (*esp, 0, 4);
+
+  //check stackoverflow
+  if (esp < (PHYS_BASE - PGSIZE))
+    thread_exit();
+    
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
