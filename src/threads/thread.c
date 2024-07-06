@@ -395,6 +395,7 @@ thread_get_recent_cpu (void)
   return 0;
 }
 
+/* Find the child thread element, with tid child_tid, of the parent thread. */
 struct list_elem *
 find_child_thread_elem (struct thread *parent, tid_t child_tid)
 {
@@ -410,6 +411,7 @@ find_child_thread_elem (struct thread *parent, tid_t child_tid)
   return NULL;
 }
 
+/* Find the child thread, with tid child_tid, of the parent thread. */
 struct child_thread_info *
 find_child_thread (struct thread *parent, tid_t child_tid)
 {
