@@ -36,6 +36,18 @@ Syed Asad Hussain asadh.syed@mail.utoronto.ca
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+Argument passing is implmented through stack. When the executable file 
+is successfully loaded, start_process() calls setup_args that parses the 
+command line arguments and sets up the args in the stack.
+
+Inside start_process(), we use strtok_r on the "file_name" variable 
+that is passed to start_process to get the args. We follow the 80x86 
+calling convention argument passing style. 
+
+Once all the relevant info is pushed to the stack, we check for stack overflow. 
+We do this by checking if the esp pointer is still within valid bounds.
+For this project, esp must be between PHYS_BASE and PHYS_BASE + PGSIZE.
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
