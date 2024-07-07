@@ -135,6 +135,16 @@ leading to more rapid development
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+Advantages:
+-Easy to keep track of each proceses's fds
+-Easy to keep track of the fds associated file name and file pointer
+-Easy to keep track of last used FD when assigning new fds
+
+Disadvantages
+-Unable to resuse fds since new fds are being assigned the next highest fd 
+that the process has allocated. 
+
+
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
 
