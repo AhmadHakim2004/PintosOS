@@ -99,6 +99,18 @@ leading to more rapid development
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
 
+The wait system call is handled by the wait system handler. The wait system handler 
+in turn calls process_wait(). process_wait() loops over the children processes 
+and find the child struct of the child thread that the current thread needs to wait on. 
+It then calls sema_down on "exit_sema" which is a semaphore member in the childs struct
+and which was initially set to 0. This ensures the current thread waits on the child thread
+until sema_up is called on "exit_sema" of the child thread. 
+
+Inside process_exit() is when the child thread sema ups the "exit_sema". This unblocks the parent
+thread. The parent thread accesses the childs exit status by reading the exit_status member 
+of the child struct. 
+
+
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
 >> process to be terminated.  System calls are fraught with such
