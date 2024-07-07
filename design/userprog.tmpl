@@ -40,6 +40,10 @@ Syed Asad Hussain asadh.syed@mail.utoronto.ca
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
+Pintos implements strtok_r() instead of strtok() to ensure thread safety. Unlike strtok(), which uses a static buffer to track token positions, strtok_r() takes an extra
+argument to store this state. This prevents issues where a context switch between threads could cause one thread to alter the state being used by another, leading to
+unexpected behavior. With strtok_r(), each thread maintains its own tokenization state, ensuring safe and predictable operation in a multi-threaded environment.
+
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
