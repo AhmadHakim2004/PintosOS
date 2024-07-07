@@ -120,6 +120,22 @@ leading to more rapid development
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
 
+When the exec system call is called, the exec handler calls process_execute()
+on the new file. When the new thread for the exec process is created, its added
+as a child thread of the current running thread. The child thread struct
+contains a "load_sema" sempahore which is initalized to one. Back in exec handler, 
+the current running thread calls sema_down on "child->load_sema" which forces the
+current running thread to wait until the child thread calls sema_up on its "load_sema".
+The child thread calls sema up its load_sema once the file has been loaded in
+start_process. This is how we make sure that the current thread does not 
+return until the exec has finished loading.
+
+The load success/failure status passed back to the thread that calls "exec" 
+by reading the success boolean member of the childs threads' struct. The success
+boolean member is updated in the start_process once the new exec file has finished 
+loading.
+
+
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
 >> calls wait(C) before C exits?  After C exits?  How do you ensure
