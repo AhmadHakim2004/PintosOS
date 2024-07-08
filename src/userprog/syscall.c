@@ -13,6 +13,8 @@
 #include "pagedir.h"
 #include "process.h"
 
+#define MAX_FILE_NAME_LENGTH 14       /* Maximum allowed file name length. */
+
 static void syscall_handler (struct intr_frame *);
 static void exit_handler (int);
 static void halt_handler (void);
@@ -27,9 +29,11 @@ static int write_handler (int, char *, unsigned);
 static void seek_handler (int, unsigned);
 static unsigned tell_handler (int);
 static void close_handler (int);
+static bool is_valid_pointer_with_size (void *, int);
 static bool is_valid_pointer (void *);
+static bool is_valid_char_pointer (char *);
 
-static struct lock lock;	// Must aquire to execute syscall handler
+static struct lock lock;	// Must aquire to execute file-related syscalls
 
 void
 syscall_init (void) 
@@ -43,66 +47,75 @@ the appropriate handler based on the interrupt code. */
 static void
 syscall_handler (struct intr_frame *f) 
 {
-  int *interrupt_code = (int *)f->esp;
+  int *intr_code = (int *)f->esp;
   void *arg1 = f->esp+4;
   void *arg2 = f->esp+8;
   void *arg3 = f->esp+12;
 
-  /* Validates the interrupt code and the first arguement pointers since all 
-  handlers have at least one arguement (except halt handler). */
-  if (!is_valid_pointer (interrupt_code) 
-      || (*interrupt_code != 0 && !is_valid_pointer (arg1)))
+  /* Validates the interrupt code pointer. */
+  if (!is_valid_pointer (intr_code))
     thread_exit ();
 
-  switch (*interrupt_code)
+  /* Validates first arguement if its an int pointer. */
+  if ((*intr_code == SYS_WAIT || *intr_code == SYS_EXIT 
+      || *intr_code >= SYS_FILESIZE) && !is_valid_pointer (arg1))
+      thread_exit ();
+
+  /* Validates first arguement if its a pointer to a char pointer. */
+  if ((*intr_code == SYS_EXEC || *intr_code == SYS_CREATE 
+      || *intr_code == SYS_REMOVE || *intr_code == SYS_OPEN) 
+      && !is_valid_pointer (arg1))
+      thread_exit ();
+
+  switch (*intr_code)
     {
-      case 0:
+      case SYS_HALT:
         halt_handler ();
         break;
-      case 1:
+      case SYS_EXIT:
         exit_handler (*(int *)arg1);
         break;
-      case 2:
+      case SYS_EXEC:
         f->eax = exec_handler (*(char **)arg1);
         break;
-      case 3:
+      case SYS_WAIT:
         f->eax = wait_handler (*(int *)arg1);
         break;
-      case 4:
+      case SYS_CREATE:
         if (!is_valid_pointer (arg2))
           thread_exit ();
         f->eax = create_handler (*(char **)arg1, *(unsigned *)arg2);
         break;
-      case 5:
+      case SYS_REMOVE:
         f->eax = remove_handler (*(char **)arg1);
         break;
-      case 6:
+      case SYS_OPEN:
         f->eax = open_handler (*(char **)arg1);
         break;
-      case 7:
+      case SYS_FILESIZE:
         f->eax = filesize_handler (*(int *)arg1);
         break;
-      case 8:
+      case SYS_READ:
         if (!is_valid_pointer (arg2) || !is_valid_pointer (arg3))
           thread_exit ();
         f->eax = read_handler (*(int *)arg1, *(char **)arg2, 
                                *(unsigned *)arg3);
         break;
-      case 9:
+      case SYS_WRITE:
         if (!is_valid_pointer (arg2) || !is_valid_pointer (arg3))
           thread_exit ();
         f->eax = write_handler (*(int *)arg1, *(char **)arg2, 
                                 *(unsigned *)arg3);
         break;
-      case 10:
+      case SYS_SEEK:
         if (!is_valid_pointer (arg2))
           thread_exit ();
         seek_handler (*(int *)arg1, *(unsigned *)arg2);
         break;
-      case 11:
+      case SYS_TELL:
         f->eax = tell_handler (*(int *)arg1);
         break;
-      case 12:
+      case SYS_CLOSE:
         close_handler (*(int *)arg1);
         break;
       default:
@@ -134,7 +147,7 @@ Returns tid -1, if the program cannot load or run for any reason. */
 static int 
 exec_handler (char *file)
 {
-  if (!is_valid_pointer (file))
+  if (!is_valid_char_pointer (file))
     thread_exit (); 
 
   int tid = process_execute (file);
@@ -155,7 +168,7 @@ Returns true if successful, false otherwise. */
 static bool 
 create_handler (char *file, unsigned initial_size)
 {
-  if (!is_valid_pointer (file))
+  if (!is_valid_char_pointer (file))
     thread_exit ();
 
   lock_acquire (&lock);
@@ -168,7 +181,7 @@ create_handler (char *file, unsigned initial_size)
 static bool 
 remove_handler (char *file)
 {
-  if (!is_valid_pointer (file))
+  if (!is_valid_char_pointer (file))
     thread_exit ();
 
   lock_acquire (&lock);
@@ -181,7 +194,7 @@ remove_handler (char *file)
 static int 
 open_handler (char *file)
 {
-  if (!is_valid_pointer (file))
+  if (!is_valid_char_pointer (file))
     thread_exit ();
 
   lock_acquire (&lock);
@@ -223,7 +236,7 @@ bytes actually read or -1 if it couldn't be read. */
 static int 
 read_handler (int fd, char *buffer, unsigned size)
 {
-  if (!is_valid_pointer (buffer))
+  if (!is_valid_pointer_with_size (buffer, sizeof (char) * size))
     thread_exit ();
 
   if (fd == 0)
@@ -254,7 +267,7 @@ bytes actually written. */
 static int 
 write_handler (int fd, char *buffer, unsigned length)
 {
-  if (!is_valid_pointer (buffer))
+  if (!is_valid_pointer_with_size (buffer, sizeof (char) * length))
     thread_exit ();
 
   if (fd == 1)
@@ -323,11 +336,51 @@ close_handler (int fd)
 
 /* Checks if the provided pointer is valid. */
 static bool 
-is_valid_pointer (void *p)
+is_valid_pointer_with_size (void *p, int size)
 {
+  uintptr_t addr = (uintptr_t)p;
   return p != NULL 
          && is_user_vaddr (p) 
          && pagedir_get_page (thread_current ()->pagedir, p) != NULL 
-         && is_user_vaddr (p+3) 
-         && pagedir_get_page (thread_current ()->pagedir, p+3) != NULL;
+         && is_user_vaddr (p+size-1) 
+         && (addr / PGSIZE == (addr+size-1) / PGSIZE
+             || pagedir_get_page (thread_current ()->pagedir, p+size-1) 
+                != NULL);
+}
+
+/* Checks if the provided pointer is valid if its an int, unsigned or char * 
+pointer. */
+static bool 
+is_valid_pointer (void *p)
+{
+  return is_valid_pointer_with_size (p, 4);
+}
+
+/* Checks if char pointer is valid. */
+static bool
+is_valid_char_pointer (char *p)
+{
+  uintptr_t addr = (uintptr_t)p;
+  if (p == NULL || is_kernel_vaddr (p) 
+      || pagedir_get_page (thread_current ()->pagedir, p) == NULL)
+    return false;
+
+  int length = 0;
+  bool checked_page_boundary = false;
+  while (length < MAX_FILE_NAME_LENGTH && *(p+length) != '\0')
+    {
+      length++;
+
+      if (is_kernel_vaddr (p+length))
+        return false;
+
+      if (!checked_page_boundary && addr / PGSIZE < (addr+length) / PGSIZE)
+        {
+          checked_page_boundary = true;
+          if (pagedir_get_page (thread_current ()->pagedir, p+length) == NULL)
+            return false;
+        }
+    }
+    
+  return true;
 }

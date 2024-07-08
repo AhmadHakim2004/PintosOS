@@ -224,6 +224,7 @@ process_exit (void)
   //free pcb struct
   enum intr_level old_level = intr_disable ();
   close_files ();
+  free_child_threads ();
   intr_set_level (old_level);
   free (cur->pcb);
 
@@ -643,6 +644,7 @@ close_files ()
     struct fds *fd_entry;
     struct list_elem *e = list_begin (&pcb->fd_table);
 
+    enum intr_level old_level = intr_disable ();
     while (e != list_end (&pcb->fd_table)) 
     {
       struct list_elem *next = list_next (e);
@@ -653,4 +655,5 @@ close_files ()
       e = next;
     }
     file_close (pcb->file);
+    intr_set_level (old_level);
   }

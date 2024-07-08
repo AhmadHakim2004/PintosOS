@@ -154,5 +154,6 @@ int thread_get_load_avg (void);
 
 struct list_elem *find_child_thread_elem (struct thread *, tid_t);
 struct child_thread_info *find_child_thread (struct thread *, tid_t);
+void free_child_threads (void);
 
 #endif /* threads/thread.h */
