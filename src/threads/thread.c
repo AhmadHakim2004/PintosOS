@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -418,6 +419,24 @@ find_child_thread (struct thread *parent, tid_t child_tid)
   struct list_elem *e = find_child_thread_elem (parent, child_tid);
   return (e == NULL) ? NULL : list_entry (e, struct child_thread_info, elem);
 }
+
+void 
+free_child_threads ()
+  {
+    struct child_thread_info *child_thread;
+    struct list_elem *e = list_begin (&thread_current ()->children);
+
+    enum intr_level old_level = intr_disable ();
+    while (e != list_end (&thread_current ()->children)) 
+    {
+      struct list_elem *next = list_next (e);
+      child_thread = list_entry (e, struct child_thread_info, elem);
+      list_remove (e);
+      free (child_thread);
+      e = next;
+    }
+    intr_set_level (old_level);
+  }
 
 /* Idle thread.  Executes when no other thread is ready to run.
 

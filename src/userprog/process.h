@@ -12,7 +12,7 @@ struct file* get_file_from_fd (int fd);
 struct list_elem* get_file_elem_from_fd (int fd);
 void close_files (void);
 
-/* Process Control Block Struct */
+/* File Information for an entry in the Process Control Block FD Table */
 struct fds
   {
     int fd;                           /* File descriptor */
@@ -21,6 +21,7 @@ struct fds
     struct list_elem elem;            /* List element */ 
   };
 
+/* Process Control Block Struct */
 struct pcb
 	{
 		struct thread *parent_thread;   /* Thread that spawns the process thread */
