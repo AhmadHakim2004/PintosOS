@@ -5,7 +5,7 @@
 
 
 
-struct hash frame_table;
+static struct hash frame_table;
 struct lock frame_table_lock;
 
 
@@ -19,6 +19,7 @@ static bool frame_less (const struct hash_elem *a_, const struct hash_elem *b_,
 /* Initialize OS wide frame table */
 void init_frame_table()
 	{
+		lock_init(&frame_table_lock);
 		hash_init (&frame_table, frame_hash, frame_less, NULL);
 	}
 
@@ -30,7 +31,6 @@ init_frame (enum palloc_flags flags)
 
   	if (page != NULL)
     	{
-				printf("size of frame '%d'",(sizeof (struct frame) ));
       	struct frame *f = malloc (sizeof (struct frame));
 
 				if (f == NULL)
