@@ -157,7 +157,6 @@ page_fault (struct intr_frame *f)
 
 	if(not_present)
 		{	
-
 			struct spt_entry *spt_entry = get_spt_entry (fault_addr);
 
 			if(spt_entry == NULL)
@@ -187,6 +186,7 @@ page_fault (struct intr_frame *f)
 									kill (f);
 								}		
 						}
+						return;
 
 					// TODO: Handle case where fault_addr is mapped to other file types
 
