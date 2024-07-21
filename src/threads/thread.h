@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <hash.h>
 #include "threads/synch.h"
 
 /* States in a thread's life cycle. */
@@ -100,6 +101,10 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
     struct pcb *pcb;                    /* Threads PCB */  
+#endif
+
+#ifdef VM
+    struct hash spt;                    /* Supplemental Page Table*/
 #endif
 
     /* Owned by thread.c. */

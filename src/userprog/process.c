@@ -20,6 +20,7 @@
 #include "threads/synch.h"
 #include "threads/malloc.h"
 #include "vm/frame.h"
+#include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -229,8 +230,10 @@ process_exit (void)
   intr_set_level (old_level);
   //free pcb struct
   free (cur->pcb);
-  //free spt
-  free(&cur->spt);
+
+  // TODO: Need to destory sptm using hash destoyer, not free
+  // hash_destroy(&t->spt, spt_entry_destory);
+
 
   struct child_thread_info *cti = find_child_thread (cur->parent, cur->tid);
   printf ("%s: exit(%d)\n", cur->name, cti->exit_status);
@@ -461,7 +464,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 /* load() helpers. */
 
-static bool install_page (void *upage, void *kpage, bool writable);
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -539,36 +541,49 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Get a page of memory. */
-      struct frame *frame = init_frame(PAL_USER);
-      uint8_t *kpage = frame->kpage;
-      if (kpage == NULL)
-      {
-        free_frame(frame);
-        return false;
-      }
+      // /* Get a page of memory. */
+      // struct frame *frame = init_frame(PAL_USER);
+      // uint8_t *kpage = frame->kpage;
+      // if (kpage == NULL)
+      // {
+      //   free_frame(frame);
+      //   return false;
+      // }
 
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          free_frame(frame);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      // /* Load this page. */
+      // if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+      //   {
+      //     palloc_free_page (kpage);
+      //     free_frame(frame);
+      //     return false; 
+      //   }
+      // memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
-          palloc_free_page (kpage);
-          free_frame(frame);
-          return false; 
-        }
+      // /* Add the page to the process's address space. */
+      // if (!install_page (upage, kpage, writable)) 
+      //   {
+      //     palloc_free_page (kpage);
+      //     free_frame(frame);
+      //     return false; 
+      //   }
+
+      struct spt_entry *spt_entry = malloc(sizeof (struct spt_entry));
+      spt_entry->uaddr = upage;
+      spt_entry->file = file;
+      spt_entry->file_offset = ofs;
+      spt_entry->file_page_size = page_read_bytes;
+      spt_entry->writable = writable;
+      spt_entry->vpt = ELF_FILE;
+
+      //insert spt_entry into cur threads spt
+      hash_insert(&thread_current()->spt, &spt_entry->hash_elem);
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      ofs += page_read_bytes;
+
     }
   return true;
 }
@@ -581,13 +596,27 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-  struct frame *frame = init_frame(PAL_USER | PAL_ZERO);
+  struct frame *frame = init_frame (PAL_USER | PAL_ZERO);
   kpage = frame->kpage;
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+        {
+          *esp = PHYS_BASE;
+
+          struct spt_entry *spt_entry = malloc(sizeof (spt_entry));
+          spt_entry->uaddr = ((uint8_t *) PHYS_BASE) - PGSIZE;
+          spt_entry->file = NULL;
+          spt_entry->file_offset = 0;
+          spt_entry->file_page_size = PGSIZE;
+          spt_entry->vpt = SWAP;
+          spt_entry->in_memory = true;
+          spt_entry->writable = true;
+
+          //insert spt_entry into cur threads spt
+          hash_insert(&thread_current()->spt, &spt_entry->hash_elem);
+        }
       else
       {
         palloc_free_page (kpage);
@@ -606,7 +635,7 @@ setup_stack (void **esp)
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
-static bool
+bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();
