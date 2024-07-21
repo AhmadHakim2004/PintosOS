@@ -11,6 +11,7 @@ void init_process_control_block (struct thread *t);
 struct file* get_file_from_fd (int fd);
 struct list_elem* get_file_elem_from_fd (int fd);
 void close_files (void);
+bool install_page (void *upage, void *kpage, bool writable);
 
 /* File Information for an entry in the Process Control Block FD Table */
 struct fds

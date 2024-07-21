@@ -1,14 +1,18 @@
 #include "vm/frame.h"
 #include "threads/malloc.h"
-#include "threads/palloc.h"
+#include "threads/synch.h"
+#include "userprog/process.h"
 
 
-static struct hash frame_table;
+
+struct hash frame_table;
+struct lock frame_table_lock;
 
 
 static unsigned frame_hash (const struct hash_elem *p_, void *aux UNUSED);
 static bool frame_less (const struct hash_elem *a_, const struct hash_elem *b_,
                         void *aux UNUSED);
+
 
 
 
@@ -20,13 +24,20 @@ void init_frame_table()
 
 
 struct frame *
-init_frame(enum palloc_flags flags)
+init_frame (enum palloc_flags flags)
 	{
 		void *page = palloc_get_page (flags);
 
   	if (page != NULL)
     	{
+				printf("size of frame '%d'",(sizeof (struct frame) ));
       	struct frame *f = malloc (sizeof (struct frame));
+
+				if (f == NULL)
+					{
+						PANIC("MALLOC FAILED");
+					}
+
       	f->kpage = page;
 				hash_insert (&frame_table, &f->hash_elem);
 				return f;
@@ -34,6 +45,15 @@ init_frame(enum palloc_flags flags)
 
 		//Need to change later
   	PANIC ("NO MORE FRAMES");
+	}
+
+bool 
+link_frame_to_uaddr(void *uaddr, void *kpage, bool writable)
+	{
+		lock_acquire(&frame_table_lock);
+		bool install_success = install_page (uaddr, kpage, writable);
+		lock_release(&frame_table_lock);		
+		return install_success;																			
 	}
 
 /*Free frame*/

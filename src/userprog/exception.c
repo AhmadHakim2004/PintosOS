@@ -1,9 +1,14 @@
 #include "userprog/exception.h"
 #include <inttypes.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include "userprog/gdt.h"
+#include "userprog/process.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "vm/page.h"
+#include "vm/frame.h"
+
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -148,14 +153,59 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+	// TODO: Need to check validation of fault address, only proceed if valid address
+
+	if(not_present)
+		{	
+
+			struct spt_entry *spt_entry = get_spt_entry (fault_addr);
+
+			if(spt_entry == NULL)
+				{
+					// TODO: Handle case where fault_addr is a stack access
+				}
+			else 
+				{
+					if (spt_entry->vpt == ELF_FILE)
+						{
+							struct frame *frame = init_frame (PAL_USER);
+							bool load_success = load_file_page_to_mem (frame->kpage, 
+																												spt_entry);
+							// bool install_success = install_page (spt_entry->uaddr, 
+							// 																		frame->kpage, 
+							// 																		spt_entry->writable);
+
+							bool install_success = link_frame_to_uaddr(spt_entry->uaddr, 
+																												 frame->kpage,
+																												 spt_entry->writable);
+
+							if (!(load_success && install_success))
+								{
+									//kill?
+									palloc_free_page (frame->kpage);
+									// free (frame);
+									kill (f);
+								}		
+						}
+
+					// TODO: Handle case where fault_addr is mapped to other file types
+
+				}
+
+		}
+	else
+		{
+			/* To implement virtual memory, delete the rest of the function
+					body, and replace it with code that brings in the page to
+					which fault_addr refers. */
+				printf ("Page fault at %p: %s error %s page in %s context.\n",
+								fault_addr,
+								not_present ? "not present" : "rights violation",
+								write ? "writing" : "reading",
+								user ? "user" : "kernel");
+				kill (f);
+		}
+
+ 
 }
 

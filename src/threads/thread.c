@@ -15,7 +15,9 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
-
+#ifdef VM
+#include "vm/page.h"
+#endif
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -216,6 +218,10 @@ thread_create (const char *name, int priority,
   #ifdef USERPROG
     //set up process control block for this new process
     init_process_control_block(t);
+  #endif
+
+  #ifdef VM
+    init_spt(t);
   #endif
 
   /* Add to run queue. */
