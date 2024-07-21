@@ -605,7 +605,7 @@ setup_stack (void **esp)
         {
           *esp = PHYS_BASE;
 
-          struct spt_entry *spt_entry = malloc(sizeof (spt_entry));
+          struct spt_entry *spt_entry = malloc(sizeof (struct spt_entry));
           spt_entry->uaddr = ((uint8_t *) PHYS_BASE) - PGSIZE;
           spt_entry->file = NULL;
           spt_entry->file_offset = 0;
