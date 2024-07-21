@@ -19,6 +19,7 @@
 #include "threads/vaddr.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
+#include "vm/frame.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -221,12 +222,15 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
 
-  //free pcb struct
+  
   enum intr_level old_level = intr_disable ();
   close_files ();
   free_child_threads ();
   intr_set_level (old_level);
+  //free pcb struct
   free (cur->pcb);
+  //free spt
+  free(&cur->spt);
 
   struct child_thread_info *cti = find_child_thread (cur->parent, cur->tid);
   printf ("%s: exit(%d)\n", cur->name, cti->exit_status);
@@ -536,14 +540,19 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
+      struct frame *frame = init_frame(PAL_USER);
+      uint8_t *kpage = frame->kpage;
       if (kpage == NULL)
+      {
+        free_frame(frame);
         return false;
+      }
 
       /* Load this page. */
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           palloc_free_page (kpage);
+          free_frame(frame);
           return false; 
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
@@ -552,6 +561,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       if (!install_page (upage, kpage, writable)) 
         {
           palloc_free_page (kpage);
+          free_frame(frame);
           return false; 
         }
 
@@ -571,14 +581,18 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  struct frame *frame = init_frame(PAL_USER | PAL_ZERO);
+  kpage = frame->kpage;
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
         *esp = PHYS_BASE;
       else
+      {
         palloc_free_page (kpage);
+        free_frame(frame);
+      }
     }
   return success;
 }
