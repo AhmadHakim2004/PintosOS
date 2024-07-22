@@ -9,7 +9,6 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "vm/page.h"
-#include "vm/frame.h"
 
 
 /* Number of page faults processed. */
@@ -211,6 +210,8 @@ page_fault (struct intr_frame *f)
 					if (spt_entry->vpt == ELF_FILE)
 						{
 							struct frame *frame = init_frame (PAL_USER);
+                     spt_entry->frame = frame;
+
 							bool load_success = load_file_page_to_mem (frame->kpage, 
 																												spt_entry);
 

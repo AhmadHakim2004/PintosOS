@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include "filesys/file.h"
 #include "threads/thread.h"
+#include "vm/frame.h"
 
 
 /* Virtual Page Type */
@@ -16,6 +17,7 @@ struct spt_entry
 	{
 		struct hash_elem hash_elem;
 		uint8_t *uaddr;
+		struct frame *frame;
 		struct file *file;
 		off_t file_offset;
 		size_t file_page_size;

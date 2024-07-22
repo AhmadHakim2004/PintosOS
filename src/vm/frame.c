@@ -57,10 +57,13 @@ link_frame_to_uaddr(void *uaddr, void *kpage, bool writable)
 	}
 
 /*Free frame*/
-void
-free_frame(struct frame *f)
+void free_frame(struct frame *f)
 	{
+		lock_acquire(&frame_table_lock);
+		palloc_free_page(f->kpage);
+		hash_delete(&frame_table, &f->hash_elem);
 		free(f);
+		lock_release(&frame_table_lock);
 	}
 
 /* Returns a hash value for frame p. */
