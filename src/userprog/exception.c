@@ -170,9 +170,6 @@ page_fault (struct intr_frame *f)
 							struct frame *frame = init_frame (PAL_USER);
 							bool load_success = load_file_page_to_mem (frame->kpage, 
 																												spt_entry);
-							// bool install_success = install_page (spt_entry->uaddr, 
-							// 																		frame->kpage, 
-							// 																		spt_entry->writable);
 
 							bool install_success = link_frame_to_uaddr(spt_entry->uaddr, 
 																												 frame->kpage,
