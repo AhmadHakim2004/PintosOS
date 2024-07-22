@@ -6,6 +6,8 @@
 #include "userprog/process.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "threads/malloc.h"
 #include "vm/page.h"
 #include "vm/frame.h"
 
@@ -161,7 +163,48 @@ page_fault (struct intr_frame *f)
 
 			if(spt_entry == NULL)
 				{
-					// TODO: Handle case where fault_addr is a stack access
+					if (user)
+						{
+							void *esp = f->esp;
+
+							if (fault_addr < PHYS_BASE && fault_addr >= esp - 32)
+								{
+									uint8_t *uaddr = (uint8_t *)pg_round_down (fault_addr);
+
+									//stack limit check
+									if (!((void *)uaddr <= PHYS_BASE - MAX_STACK_SIZE))
+										{
+											struct spt_entry *spt_entry = 
+																						malloc (sizeof (struct spt_entry));
+											spt_entry->uaddr = uaddr;
+											spt_entry->file = NULL;
+											spt_entry->file_offset = 0;
+											spt_entry->file_page_size = PGSIZE;
+											spt_entry->vpt = SWAP;
+											spt_entry->in_memory = true;
+											spt_entry->writable = true;
+
+											//insert spt_entry into cur threads spt
+											hash_insert(&thread_current()->spt, 
+																	&spt_entry->hash_elem); 
+
+											struct frame *frame = init_frame (PAL_USER);
+											bool install_success = 
+											link_frame_to_uaddr (uaddr, frame->kpage,	
+																					 spt_entry->writable);
+
+											if (!install_success)
+												{
+													kill (f);
+												}
+																					
+											return;
+										}
+								}
+							
+							// TODO: Terminate process
+							kill(f);
+						}
 				}
 			else 
 				{
