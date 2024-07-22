@@ -3,7 +3,7 @@
 #include <string.h>
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
-
+#include "userprog/pagedir.h"
 
 static unsigned spt_hash (const struct hash_elem *p_, void *aux UNUSED);
 static bool spt_less (const struct hash_elem *a_, const struct hash_elem *b_,
@@ -49,6 +49,15 @@ load_file_page_to_mem (void *kpage, struct spt_entry *spt_entry)
 		return true;
 	}
 
+void spt_entry_destory(struct hash_elem *e, void *aux UNUSED)
+	{
+		struct spt_entry *spt_entry = hash_entry(e, struct spt_entry, hash_elem);
+		pagedir_clear_page(thread_current()->pagedir, spt_entry->uaddr);
+		if (spt_entry->frame != NULL)
+			free_frame(spt_entry->frame);
+		hash_delete(&thread_current()->spt, &spt_entry->hash_elem);
+		free(spt_entry);
+	}
 
 static unsigned
 spt_hash (const struct hash_elem *p_, void *aux UNUSED)

@@ -19,7 +19,6 @@
 #include "threads/vaddr.h"
 #include "threads/synch.h"
 #include "threads/malloc.h"
-#include "vm/frame.h"
 #include "vm/page.h"
 
 static thread_func start_process NO_RETURN;
@@ -232,8 +231,7 @@ process_exit (void)
   free (cur->pcb);
 
   // TODO: Need to destory sptm using hash destoyer, not free
-  // hash_destroy(&t->spt, spt_entry_destory);
-
+  hash_destroy(&cur->spt, spt_entry_destory);
 
   struct child_thread_info *cti = find_child_thread (cur->parent, cur->tid);
   printf ("%s: exit(%d)\n", cur->name, cti->exit_status);
@@ -581,6 +579,7 @@ setup_stack (void **esp)
 
           struct spt_entry *spt_entry = malloc(sizeof (struct spt_entry));
           spt_entry->uaddr = ((uint8_t *) PHYS_BASE) - PGSIZE;
+          spt_entry->frame = frame;
           spt_entry->file = NULL;
           spt_entry->file_offset = 0;
           spt_entry->file_page_size = PGSIZE;
