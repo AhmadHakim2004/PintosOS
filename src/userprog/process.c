@@ -541,32 +541,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      // /* Get a page of memory. */
-      // struct frame *frame = init_frame(PAL_USER);
-      // uint8_t *kpage = frame->kpage;
-      // if (kpage == NULL)
-      // {
-      //   free_frame(frame);
-      //   return false;
-      // }
-
-      // /* Load this page. */
-      // if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-      //   {
-      //     palloc_free_page (kpage);
-      //     free_frame(frame);
-      //     return false; 
-      //   }
-      // memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-      // /* Add the page to the process's address space. */
-      // if (!install_page (upage, kpage, writable)) 
-      //   {
-      //     palloc_free_page (kpage);
-      //     free_frame(frame);
-      //     return false; 
-      //   }
-
       struct spt_entry *spt_entry = malloc(sizeof (struct spt_entry));
       spt_entry->uaddr = upage;
       spt_entry->file = file;
