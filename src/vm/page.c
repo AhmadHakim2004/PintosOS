@@ -38,25 +38,11 @@ get_spt_entry(void *uaddr)
 bool 
 load_file_page_to_mem (void *kpage, struct spt_entry *spt_entry)
 	{
-		// off_t saved_ofs = file_tell (spt_entry->file);
-		// file_seek(spt_entry->file, spt_entry->file_offset);
-
-    // if (file_read (spt_entry->file, kpage,
-		// 		spt_entry->file_page_size) != (int) spt_entry->file_page_size)
-    //   {
-    //     return false; 
- 		// 	}	
-			
-		// file_seek(spt_entry->file, saved_ofs);
-
-		// off_t saved_ofs = file_tell (spt_entry->file);
-
 		if (file_read_at (spt_entry->file, kpage, spt_entry->file_page_size, 
 											spt_entry->file_offset) != (int) spt_entry->file_page_size)
 			{
 				return false;
 			}
-		// file_seek(spt_entry->file, saved_ofs);
 			
 		memset(kpage + spt_entry->file_page_size, 0,
 		PGSIZE - spt_entry->file_page_size);
