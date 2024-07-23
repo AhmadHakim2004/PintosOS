@@ -17,6 +17,7 @@
 #endif
 #ifdef VM
 #include "vm/page.h"
+#include "vm/mapped_file.h"
 #endif
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -222,6 +223,8 @@ thread_create (const char *name, int priority,
 
   #ifdef VM
     init_spt(t);
+    init_mappings (t);
+    t->last_mapid = 0;
   #endif
 
   /* Add to run queue. */

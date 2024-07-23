@@ -12,6 +12,9 @@
 #include "filesys/file.h"
 #include "pagedir.h"
 #include "process.h"
+#include "lib/user/syscall.h"
+#include "vm/mapped_file.h"
+#include "vm/page.h"
 
 #define MAX_FILE_NAME_LENGTH 14       /* Maximum allowed file name length. */
 
@@ -29,6 +32,8 @@ static int write_handler (int, char *, unsigned);
 static void seek_handler (int, unsigned);
 static unsigned tell_handler (int);
 static void close_handler (int);
+static mapid_t mmaphandler (int, void *);
+static void munmap_handler (mapid_t);
 static bool is_valid_pointer_with_size (void *, int);
 static bool is_valid_pointer (void *);
 static bool is_valid_char_pointer (char *);
@@ -117,6 +122,14 @@ syscall_handler (struct intr_frame *f)
         break;
       case SYS_CLOSE:
         close_handler (*(int *)arg1);
+        break;
+      case SYS_MMAP:
+        if (!is_valid_pointer (arg2))
+          thread_exit ();
+        f->eax = mmaphandler (*(int *)arg1, *(void **)arg2);
+        break;
+      case SYS_MUNMAP:
+        munmap_handler (*(mapid_t *)arg1);
         break;
       default:
         thread_exit ();
@@ -332,6 +345,48 @@ close_handler (int fd)
   lock_release (&lock);
   list_remove (file_elem);
   free (fds);
+}
+
+static mapid_t 
+mmaphandler (int fd, void *addr)
+{
+  if (fd < 2 || (uintptr_t)addr == 0 || (uintptr_t)addr % PGSIZE != 0)
+    return -1;
+
+  struct list_elem *file_elem = get_file_elem_from_fd (fd);
+  if (file_elem == NULL)
+    return -1;
+
+  struct fds *fds = list_entry (file_elem, struct fds, elem);
+  struct file *file = fds->fp;
+  if (file == NULL || file_length (file) == 0)
+    return -1;
+
+  file = file_reopen (file);
+  uint32_t read_bytes = file_length (file);
+  uint32_t zero_bytes = PGSIZE - (read_bytes % PGSIZE);
+  if (!load_segment (file_reopen (fds->fp), 0, addr, read_bytes,zero_bytes, true))
+    return -1;
+
+  thread_current ()->last_mapid++;
+  struct mapped_file *mapped_file_entry = malloc (sizeof (struct mapped_file));
+  mapped_file_entry->addr = addr;
+  mapped_file_entry->file = file;
+  mapped_file_entry->size = read_bytes;
+  mapped_file_entry->id = thread_current ()->last_mapid;
+  hash_insert(&thread_current()->mappings, &mapped_file_entry->hash_elem);
+  
+  return mapped_file_entry->id;
+}
+
+static void 
+munmap_handler (mapid_t id)
+{
+  struct mapped_file *mapped_file = get_mapped_file(id);
+  if (mapped_file == NULL)
+    return;
+
+  mapped_file_destory(&mapped_file->hash_elem, NULL);
 }
 
 /* Checks if the provided pointer is valid. */

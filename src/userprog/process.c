@@ -20,6 +20,7 @@
 #include "threads/synch.h"
 #include "threads/malloc.h"
 #include "vm/page.h"
+#include "vm/mapped_file.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -230,7 +231,7 @@ process_exit (void)
   //free pcb struct
   free (cur->pcb);
 
-  // TODO: Need to destory sptm using hash destoyer, not free
+  hash_destroy(&cur->mappings, mapped_file_destory);
   hash_destroy(&cur->spt, spt_entry_destory);
 
   struct child_thread_info *cti = find_child_thread (cur->parent, cur->tid);
@@ -338,9 +339,6 @@ struct Elf32_Phdr
 
 static bool setup_stack (void **esp);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
-static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
-                          uint32_t read_bytes, uint32_t zero_bytes,
-                          bool writable);
 
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
@@ -522,7 +520,7 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
 
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
-static bool
+bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
@@ -533,6 +531,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
+      if (get_spt_entry (upage) != NULL)
+        return false;
+
       /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
