@@ -531,7 +531,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   file_seek (file, ofs);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
-      if (get_spt_entry (upage) != NULL)
+      if (upage == NULL || is_kernel_vaddr (upage) || is_kernel_vaddr (upage) 
+          || get_spt_entry (upage) != NULL)
         return false;
 
       /* Calculate how to fill this page.

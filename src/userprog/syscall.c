@@ -396,11 +396,10 @@ is_valid_pointer_with_size (void *p, int size)
   uintptr_t addr = (uintptr_t)p;
   return p != NULL 
          && is_user_vaddr (p) 
-         && pagedir_get_page (thread_current ()->pagedir, p) != NULL 
+         && get_spt_entry (p) != NULL 
          && is_user_vaddr (p+size-1) 
          && (addr / PGSIZE == (addr+size-1) / PGSIZE
-             || pagedir_get_page (thread_current ()->pagedir, p+size-1) 
-                != NULL);
+             || get_spt_entry (p+size-1) != NULL);
 }
 
 /* Checks if the provided pointer is valid if its an int, unsigned or char * 
@@ -416,8 +415,7 @@ static bool
 is_valid_char_pointer (char *p)
 {
   uintptr_t addr = (uintptr_t)p;
-  if (p == NULL || is_kernel_vaddr (p) 
-      || pagedir_get_page (thread_current ()->pagedir, p) == NULL)
+  if (p == NULL || is_kernel_vaddr (p) || get_spt_entry (p) == NULL)
     return false;
 
   int length = 0;
@@ -432,7 +430,7 @@ is_valid_char_pointer (char *p)
       if (!checked_page_boundary && addr / PGSIZE < (addr+length) / PGSIZE)
         {
           checked_page_boundary = true;
-          if (pagedir_get_page (thread_current ()->pagedir, p+length) == NULL)
+          if (get_spt_entry (p+length) == NULL)
             return false;
         }
     }
