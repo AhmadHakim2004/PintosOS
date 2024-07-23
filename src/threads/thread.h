@@ -109,6 +109,8 @@ struct thread
 
 #ifdef VM
     struct hash spt;                    /* Supplemental Page Table*/
+    struct hash mappings;
+    int last_mapid;
 #endif
 
     /* Owned by thread.c. */

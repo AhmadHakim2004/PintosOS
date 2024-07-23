@@ -173,9 +173,11 @@ page_fault (struct intr_frame *f)
 									//stack limit check
 									if (!((void *)uaddr <= PHYS_BASE - MAX_STACK_SIZE))
 										{
+                                 struct frame *frame = init_frame (PAL_USER);
 											struct spt_entry *spt_entry = 
 																						malloc (sizeof (struct spt_entry));
 											spt_entry->uaddr = uaddr;
+                                 spt_entry->frame = frame;
 											spt_entry->file = NULL;
 											spt_entry->file_offset = 0;
 											spt_entry->file_page_size = PGSIZE;
@@ -187,7 +189,6 @@ page_fault (struct intr_frame *f)
 											hash_insert(&thread_current()->spt, 
 																	&spt_entry->hash_elem); 
 
-											struct frame *frame = init_frame (PAL_USER);
 											bool install_success = 
 											link_frame_to_uaddr (uaddr, frame->kpage,	
 																					 spt_entry->writable);
