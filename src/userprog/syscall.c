@@ -34,7 +34,7 @@ static unsigned tell_handler (int);
 static void close_handler (int);
 static mapid_t mmaphandler (int, void *);
 static void munmap_handler (mapid_t);
-static bool is_valid_pointer_with_size (void *, int);
+static bool is_valid_pointer_with_size (void *, int, bool);
 static bool is_valid_pointer (void *);
 static bool is_valid_char_pointer (char *);
 
@@ -255,7 +255,7 @@ read_handler (int fd, char *buffer, unsigned size)
 {
 
   
-  if (!is_valid_pointer_with_size (buffer, sizeof (char) * size))
+  if (!is_valid_pointer_with_size (buffer, sizeof (char) * size, true))
     thread_exit ();
 
   if (fd == 0)
@@ -286,7 +286,7 @@ bytes actually written. */
 static int 
 write_handler (int fd, char *buffer, unsigned length)
 {
-  if (!is_valid_pointer_with_size (buffer, sizeof (char) * length))
+  if (!is_valid_pointer_with_size (buffer, sizeof (char) * length, true))
     thread_exit ();
 
   if (fd == 1)
@@ -397,16 +397,18 @@ munmap_handler (mapid_t id)
 
 /* Checks if the provided pointer is valid. */
 static bool 
-is_valid_pointer_with_size (void *p, int size)
+is_valid_pointer_with_size (void *p, int size, bool check)
 {
   uintptr_t addr = (uintptr_t)p;
-  return p != NULL 
-         && is_user_vaddr (p) 
-         && ((uint32_t *)p >= (esp - 32) ||
-         (get_spt_entry (p) != NULL 
+  bool b1 = p != NULL;
+  bool b2 = is_user_vaddr (p);
+  bool b3 = (uint32_t *)p >= (esp - 32);
+  bool b4 = get_spt_entry (p) != NULL 
          && is_user_vaddr (p+size-1) 
          && (addr / PGSIZE == (addr+size-1) / PGSIZE
-             || get_spt_entry (p+size-1) != NULL)));
+             || get_spt_entry (p+size-1) != NULL);
+  bool b5 = &esp > PHYS_BASE - MAX_STACK_SIZE;
+  return b1 && b2 && b5 && ((check && b3) || b4);
       
       // TODO: check stack pointer validation
         
@@ -417,7 +419,7 @@ pointer. */
 static bool 
 is_valid_pointer (void *p)
 {
-  return is_valid_pointer_with_size (p, 4);
+  return is_valid_pointer_with_size (p, 4, false);
 }
 
 /* Checks if char pointer is valid. */
