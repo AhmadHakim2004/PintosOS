@@ -184,7 +184,7 @@ setup_args (char *save_ptr, void **esp, char *file_name)
   memset (*esp, 0, 4);
 
   //check stackoverflow
-  if (esp < (PHYS_BASE - PGSIZE))
+  if ((void *) esp < (PHYS_BASE - PGSIZE))
     thread_exit();
     
 }
