@@ -39,6 +39,7 @@ static bool is_valid_pointer (void *);
 static bool is_valid_char_pointer (char *);
 
 static struct lock lock;	// Must aquire to execute file-related syscalls
+static uint32_t *esp;
 
 void
 syscall_init (void) 
@@ -52,10 +53,13 @@ the appropriate handler based on the interrupt code. */
 static void
 syscall_handler (struct intr_frame *f) 
 {
+  esp = (uint32_t *)f->esp;
   int *intr_code = (int *)f->esp;
   void *arg1 = f->esp+4;
   void *arg2 = f->esp+8;
   void *arg3 = f->esp+12;
+
+  thread_current()->saved_esp = f->esp;
 
   /* Validates the interrupt code pointer. */
   if (!is_valid_pointer (intr_code))
@@ -249,6 +253,8 @@ bytes actually read or -1 if it couldn't be read. */
 static int 
 read_handler (int fd, char *buffer, unsigned size)
 {
+
+  
   if (!is_valid_pointer_with_size (buffer, sizeof (char) * size))
     thread_exit ();
 
@@ -396,10 +402,14 @@ is_valid_pointer_with_size (void *p, int size)
   uintptr_t addr = (uintptr_t)p;
   return p != NULL 
          && is_user_vaddr (p) 
-         && get_spt_entry (p) != NULL 
+         && ((uint32_t *)p >= (esp - 32) ||
+         (get_spt_entry (p) != NULL 
          && is_user_vaddr (p+size-1) 
          && (addr / PGSIZE == (addr+size-1) / PGSIZE
-             || get_spt_entry (p+size-1) != NULL);
+             || get_spt_entry (p+size-1) != NULL)));
+      
+      // TODO: check stack pointer validation
+        
 }
 
 /* Checks if the provided pointer is valid if its an int, unsigned or char * 

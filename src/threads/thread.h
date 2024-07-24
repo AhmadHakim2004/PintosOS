@@ -97,6 +97,7 @@ struct thread
     struct thread *parent;              /* Parent thread. */
     struct list children;               /* List of child threads. */
     struct list_elem allelem;           /* List element for all threads list. */
+    uint8_t *saved_esp;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
