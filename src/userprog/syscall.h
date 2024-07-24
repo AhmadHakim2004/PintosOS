@@ -2,5 +2,6 @@
 #define USERPROG_SYSCALL_H
 
 void syscall_init (void);
+extern struct lock file_lock;	// Must aquire to execute file-related syscalls
 
 #endif /* userprog/syscall.h */

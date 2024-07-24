@@ -4,6 +4,9 @@
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
+#include "userprog/syscall.h"
+#include <ctype.h>
+#include <stdio.h>
 
 static unsigned spt_hash (const struct hash_elem *p_, void *aux UNUSED);
 static bool spt_less (const struct hash_elem *a_, const struct hash_elem *b_,
@@ -34,18 +37,32 @@ get_spt_entry(void *uaddr)
   	return NULL;
 	}
 
+static void print_ascii(const char *data, size_t size) {
+    printf("Read content: ");
+    for (size_t i = 0; i < size; ++i) {
+        if (isprint((unsigned char)data[i])) {
+            putchar(data[i]);
+        } else {
+            putchar('.');  // Replace non-printable characters with '.'
+        }
+    }
+    printf("\n");
+}
 
 bool 
 load_file_page_to_mem (void *kpage, struct spt_entry *spt_entry)
 	{
+		lock_acquire (&file_lock);
 		if (file_read_at (spt_entry->file, kpage, spt_entry->file_page_size, 
 											spt_entry->file_offset) != (int) spt_entry->file_page_size)
 			{
 				return false;
 			}
+		print_ascii (kpage, spt_entry->file_page_size);
 			
 		memset(kpage + spt_entry->file_page_size, 0,
 		PGSIZE - spt_entry->file_page_size);
+		lock_release (&file_lock);
 		return true;
 	}
 

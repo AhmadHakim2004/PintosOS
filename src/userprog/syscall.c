@@ -38,14 +38,14 @@ static bool is_valid_pointer_with_size (void *, int, bool);
 static bool is_valid_pointer (void *);
 static bool is_valid_char_pointer (char *);
 
-static struct lock lock;	// Must aquire to execute file-related syscalls
 static uint32_t *esp;
+struct lock file_lock;
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-  lock_init (&lock);
+  lock_init (&file_lock);
 }
 
 /* Gets the interrupt code and arguements from the interrupt frame and calls 
@@ -188,9 +188,9 @@ create_handler (char *file, unsigned initial_size)
   if (!is_valid_char_pointer (file))
     thread_exit ();
 
-  lock_acquire (&lock);
+  lock_acquire (&file_lock);
   bool success = filesys_create (file, initial_size);
-  lock_release (&lock);
+  lock_release (&file_lock);
   return success;
 }
 
@@ -201,9 +201,9 @@ remove_handler (char *file)
   if (!is_valid_char_pointer (file))
     thread_exit ();
 
-  lock_acquire (&lock);
+  lock_acquire (&file_lock);
   bool success = filesys_remove (file);
-  lock_release (&lock);
+  lock_release (&file_lock);
   return success;
 }
 
@@ -214,9 +214,9 @@ open_handler (char *file)
   if (!is_valid_char_pointer (file))
     thread_exit ();
 
-  lock_acquire (&lock);
+  lock_acquire (&file_lock);
   struct file *fp = filesys_open (file);
-  lock_release (&lock);
+  lock_release (&file_lock);
 
   if (fp == NULL)
     return -1;
@@ -242,9 +242,9 @@ filesize_handler (int fd)
   if (fp == NULL)
     thread_exit ();
   
-  lock_acquire (&lock);
+  lock_acquire (&file_lock);
   int size = file_length (fp);
-  lock_release (&lock);
+  lock_release (&file_lock);
   return size;
 }
 
@@ -253,8 +253,6 @@ bytes actually read or -1 if it couldn't be read. */
 static int 
 read_handler (int fd, char *buffer, unsigned size)
 {
-
-  
   if (!is_valid_pointer_with_size (buffer, sizeof (char) * size, true))
     thread_exit ();
 
@@ -275,9 +273,9 @@ read_handler (int fd, char *buffer, unsigned size)
   if (fp == NULL)
     return -1;
   
-  lock_acquire (&lock);
+  lock_acquire (&file_lock);
   int read_length = file_read (fp, buffer, size);
-  lock_release (&lock);
+  lock_release (&file_lock);
   return read_length;
 }
 
@@ -299,9 +297,9 @@ write_handler (int fd, char *buffer, unsigned length)
   if (fp == NULL)
     return -1;
   
-  lock_acquire (&lock);
+  lock_acquire (&file_lock);
   int write_length = file_write (fp, buffer, length);
-  lock_release (&lock);
+  lock_release (&file_lock);
   return write_length;
 }
 
@@ -314,9 +312,9 @@ seek_handler (int fd, unsigned position)
   if (fp == NULL)
     thread_exit ();
 
-  lock_acquire (&lock);
+  lock_acquire (&file_lock);
   file_seek (fp, position);
-  lock_release (&lock);
+  lock_release (&file_lock);
 }
 
 /* Returns the position of the next byte to be read or written in open file fd, 
@@ -331,9 +329,9 @@ tell_handler (int fd)
       thread_exit ();
     }
   
-  lock_acquire (&lock);
+  lock_acquire (&file_lock);
   unsigned position = file_tell (fp);
-  lock_release (&lock);
+  lock_release (&file_lock);
   return position;
 }
 
@@ -346,9 +344,9 @@ close_handler (int fd)
     return;
 
   struct fds *fds = list_entry (file_elem, struct fds, elem);
-  lock_acquire (&lock);
+  lock_acquire (&file_lock);
   file_close (fds->fp);
-  lock_release (&lock);
+  lock_release (&file_lock);
   list_remove (file_elem);
   free (fds);
 }
