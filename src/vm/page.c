@@ -52,17 +52,17 @@ static void print_ascii(const char *data, size_t size) {
 bool 
 load_file_page_to_mem (void *kpage, struct spt_entry *spt_entry)
 	{
-		lock_acquire (&file_lock);
+		// lock_acquire (&file_lock);
 		if (file_read_at (spt_entry->file, kpage, spt_entry->file_page_size, 
 											spt_entry->file_offset) != (int) spt_entry->file_page_size)
 			{
 				return false;
 			}
-		print_ascii (kpage, spt_entry->file_page_size);
+		// print_ascii (kpage, spt_entry->file_page_size);
 			
 		memset(kpage + spt_entry->file_page_size, 0,
 		PGSIZE - spt_entry->file_page_size);
-		lock_release (&file_lock);
+		// lock_release (&file_lock);
 		return true;
 	}
 
