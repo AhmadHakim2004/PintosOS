@@ -39,7 +39,6 @@ static bool is_valid_pointer (void *);
 static bool is_valid_char_pointer (char *);
 
 static uint32_t *esp;
-struct lock file_lock;
 
 void
 syscall_init (void) 

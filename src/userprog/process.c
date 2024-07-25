@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "userprog/gdt.h"
+#include "userprog/syscall.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
 #include "filesys/directory.h"
@@ -232,7 +233,7 @@ process_exit (void)
   free (cur->pcb);
 
   hash_destroy(&cur->mappings, mapped_file_destory);
-  hash_destroy(&cur->spt, spt_entry_destory);
+  // hash_destroy(&cur->spt, spt_entry_destory);
 
   struct child_thread_info *cti = find_child_thread (cur->parent, cur->tid);
   printf ("%s: exit(%d)\n", cur->name, cti->exit_status);
@@ -361,13 +362,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
+  lock_acquire(&file_lock);
   file = filesys_open (file_name);
   if (file == NULL) 
     {
+      lock_release( &file_lock);
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
   file_deny_write (file);
+  lock_release( &file_lock);
   #ifdef USERPROG
     thread_current () -> pcb -> file = file;
   #endif
@@ -656,6 +660,8 @@ get_file_elem_from_fd (int fd)
 void 
 close_files ()
   {
+    lock_acquire(&file_lock);
+
     struct thread *curr = thread_current ();
     struct pcb *pcb = curr->pcb;
 
@@ -673,5 +679,6 @@ close_files ()
       e = next;
     }
     file_close (pcb->file);
+    lock_release(&file_lock);
     intr_set_level (old_level);
   }
