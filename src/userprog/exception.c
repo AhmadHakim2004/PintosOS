@@ -226,8 +226,6 @@ page_fault (struct intr_frame *f)
 						if (!(load_success && install_success))
 							{
 								//kill?
-								palloc_free_page (frame->kpage);
-								// free (frame);
 								kill (f);
 							}		
 						return;
