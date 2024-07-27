@@ -641,7 +641,11 @@ get_file_elem_from_fd (int fd)
 void 
 close_files ()
   {
-    lock_acquire(&file_lock);
+    if(!lock_held_by_current_thread(&file_lock))
+      {
+        lock_acquire(&file_lock);
+      }
+   
 
     struct thread *curr = thread_current ();
     struct pcb *pcb = curr->pcb;

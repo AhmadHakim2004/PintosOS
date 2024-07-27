@@ -217,11 +217,11 @@ page_fault (struct intr_frame *f)
                    spt_entry->frame = frame;
 
 						bool load_success = load_file_page_to_mem (frame->kpage, 
-																											 spt_entry);
+																				 spt_entry);
 
 						bool install_success = link_frame_to_uaddr(spt_entry->uaddr, 
-																												 frame->kpage,
-																												 spt_entry->writable);
+																				 frame->kpage,
+																				 spt_entry->writable);
 
 						if (!(load_success && install_success))
 							{
@@ -241,12 +241,7 @@ page_fault (struct intr_frame *f)
 			/* To implement virtual memory, delete the rest of the function
 					body, and replace it with code that brings in the page to
 					which fault_addr refers. */
-				printf ("Page fault at %p: %s error %s page in %s context.\n",
-								fault_addr,
-								not_present ? "not present" : "rights violation",
-								write ? "writing" : "reading",
-								user ? "user" : "kernel");
-				kill (f);
+            thread_exit();
 		}
 
  
