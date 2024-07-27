@@ -545,16 +545,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      struct spt_entry *spt_entry = malloc(sizeof (struct spt_entry));
-      spt_entry->uaddr = upage;
-      spt_entry->file = file;
-      spt_entry->file_offset = ofs;
-      spt_entry->file_page_size = page_read_bytes;
-      spt_entry->writable = writable;
-      spt_entry->vpt = ELF_FILE;
-
-      //insert spt_entry into cur threads spt
-      hash_insert(&thread_current()->spt, &spt_entry->hash_elem);
+      init_spt_entry (upage, NULL, file, ofs, page_read_bytes, writable, false, 
+                      ELF_FILE);
 
       /* Advance. */
       read_bytes -= page_read_bytes;
@@ -583,22 +575,11 @@ setup_stack (void **esp)
         {
           *esp = PHYS_BASE;
 
-          struct spt_entry *spt_entry = malloc(sizeof (struct spt_entry));
-          spt_entry->uaddr = ((uint8_t *) PHYS_BASE) - PGSIZE;
-          spt_entry->frame = frame;
-          spt_entry->file = NULL;
-          spt_entry->file_offset = 0;
-          spt_entry->file_page_size = PGSIZE;
-          spt_entry->vpt = SWAP;
-          spt_entry->in_memory = true;
-          spt_entry->writable = true;
-
-          //insert spt_entry into cur threads spt
-          hash_insert(&thread_current()->spt, &spt_entry->hash_elem);
+          init_spt_entry (((uint8_t *) PHYS_BASE) - PGSIZE, frame, NULL, 0, 
+                          PGSIZE, true, false, SWAP);
         }
       else
       {
-        palloc_free_page (kpage);
         free_frame(frame);
       }
     }
