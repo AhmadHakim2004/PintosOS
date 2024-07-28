@@ -58,6 +58,38 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+/* Structure representing a frame in the system. */
+struct frame
+{
+  struct hash_elem hash_elem;   /* Hash element for inserting into the frame table. */
+  struct thread *owner;         /* The owner thread of the frame */
+  bool pinned;                  /* Indicates if the frame is pinned (cannot be evicted) */
+  struct spt_entry *spe;        /* Supplementary page table entry associated with the frame */
+  void *kpage;                  /* Physical Page */
+	};
+
+/* Structure representing an entry in the swap table. */
+struct swap_entry
+{
+  bool free;    /* Indicates whether the swap slot is free */
+};
+
+
+static struct hash frame_table;         /* Global frame table for managing frames. */
+struct lock frame_table_lock;           /* Lock to ensure mutual exclusion when accessing the frame table. */
+static struct swap_entry *swap_table;   /* Lock to ensure mutual exclusion when accessing the frame table. */
+static struct lock swap_table_lock;     /* Lock to ensure mutual exclusion when accessing the swap table. */
+static struct block *swap_block;        /* Block device representing the swap space. */
+static int swap_table_size;             /* Size of the swap table (number of entries). */
+
+struct thread { ...
+#ifdef VM
+    struct hash spt;                    /* Supplemental Page Table*/
+    struct hash mappings;               /* Hash table for memory mapping */
+    int last_mapid;                     /* Last mapped id */
+#endif
+    ... }
+
 ---- ALGORITHMS ----
 
 >> B2: When a frame is required but none is free, some frame must be
