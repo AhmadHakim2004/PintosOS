@@ -73,7 +73,6 @@ load_file_page_to_mem (void *kpage, struct spt_entry *spt_entry)
 void spt_entry_destory(struct hash_elem *e, void *aux UNUSED)
 	{
 		struct spt_entry *spt_entry = hash_entry(e, struct spt_entry, hash_elem);
-		pagedir_clear_page(thread_current()->pagedir, spt_entry->uaddr);
 		if (spt_entry->frame != NULL && spt_entry->in_memory)
 			free_frame(spt_entry->frame);
 		hash_delete(&thread_current()->spt, &spt_entry->hash_elem);

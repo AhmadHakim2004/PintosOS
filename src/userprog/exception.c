@@ -181,7 +181,7 @@ page_fault (struct intr_frame *f)
 							if (!((void *)uaddr <= PHYS_BASE - MAX_STACK_SIZE))
 								{
                            struct frame *frame = init_frame (PAL_USER);
-                           struct spt_entry *spt_entry = init_spt_entry (uaddr, frame, NULL, 0, PGSIZE, true, false, SWAP);
+                           struct spt_entry *spt_entry = init_spt_entry (uaddr, frame, NULL, 0, PGSIZE, true, true, SWAP);
                            frame->spe = spt_entry;
 
 									bool install_success = 

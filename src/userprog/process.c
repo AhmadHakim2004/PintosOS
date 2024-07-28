@@ -545,7 +545,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      init_spt_entry (upage, NULL, file, ofs, page_read_bytes, writable, false, 
+      init_spt_entry (upage, NULL, file, ofs, page_read_bytes, writable, true, 
                       ELF_FILE);
 
       /* Advance. */
@@ -576,7 +576,7 @@ setup_stack (void **esp)
           *esp = PHYS_BASE;
 
           struct spt_entry *spe = init_spt_entry (((uint8_t *) PHYS_BASE) - PGSIZE, frame, NULL, 0, 
-                          PGSIZE, true, false, SWAP);
+                          PGSIZE, true, true, SWAP);
           frame->spe = spe; 
         }
       else
