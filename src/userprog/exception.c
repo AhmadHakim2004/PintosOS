@@ -179,21 +179,9 @@ page_fault (struct intr_frame *f)
 							//stack limit check
 							if (!((void *)uaddr <= PHYS_BASE - MAX_STACK_SIZE))
 								{
-									struct frame *frame = init_frame (PAL_USER);
-									struct spt_entry *spt_entry = 
-																					malloc (sizeof (struct spt_entry));
-									spt_entry->uaddr = uaddr;
-                	               spt_entry->frame = frame;
-									spt_entry->file = NULL;
-									spt_entry->file_offset = 0;
-									spt_entry->file_page_size = PGSIZE;
-									spt_entry->vpt = SWAP;
-									spt_entry->in_memory = true;
-									spt_entry->writable = true;
-
-									//insert spt_entry into cur threads spt
-									hash_insert(&thread_current()->spt, 
-																	&spt_entry->hash_elem); 
+									
+									struct spt_entry *spt_entry = init_spt_entry (uaddr, PAL_USER, NULL, 0, PGSIZE, true, false, SWAP);
+                           struct frame *frame = spt_entry->frame;
 
 									bool install_success = 
 																link_frame_to_uaddr (uaddr, frame->kpage,	
@@ -213,8 +201,7 @@ page_fault (struct intr_frame *f)
 				}
 				else if (spt_entry->vpt == ELF_FILE)
 					{
-						struct frame *frame = init_frame (PAL_USER);
-                   spt_entry->frame = frame;
+						struct frame *frame = init_frame (PAL_USER, spt_entry);
 
 						bool load_success = load_file_page_to_mem (frame->kpage, 
 																				 spt_entry);
@@ -230,6 +217,13 @@ page_fault (struct intr_frame *f)
 							}		
 						return;
 					}
+               else if (spt_entry->vpt == SWAP){
+                  struct frame *frame = init_frame (PAL_USER, spt_entry);
+                  frame->pinned = true;
+                  swap_in (frame->kpage, spt_entry->swap_index);
+                  frame->pinned = false;
+                  
+               }
 					else
 						{	
 							// TODO: Handle case where fault_addr is mapped to other file types

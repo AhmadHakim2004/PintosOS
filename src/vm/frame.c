@@ -1,7 +1,9 @@
-#include "vm/frame.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
 #include "userprog/process.h"
+#include "vm/page.h"
+#include "userprog/pagedir.h"
+#include "vm/swap.h"
 
 
 
@@ -25,26 +27,36 @@ void init_frame_table()
 
 
 struct frame *
-init_frame (enum palloc_flags flags)
+init_frame (enum palloc_flags flags, struct spt_entry *spe)
 	{
+		// lock_acquire(&frame_table_lock);
+
 		void *page = palloc_get_page (flags);
 
-  	if (page != NULL)
+  	if (page == NULL)
     	{
-      	struct frame *f = malloc (sizeof (struct frame));
+      	struct frame *f = frame_evict_get ();
+		frame_evict (f);
+		page = palloc_get_page (flags);
+		// printf("NEW PAGE: %p\n", page);
+    	}
 
-				if (f == NULL)
-					{
+	struct frame *f = malloc (sizeof (struct frame));
+
+	if (f == NULL)
+{
 						PANIC("MALLOC FAILED");
 					}
 
       	f->kpage = page;
+		f->pinned = false;
+		f->owner = thread_current();
+		f->spe = spe;
+		spe->frame = f;
+		
 				hash_insert (&frame_table, &f->hash_elem);
+				// lock_release(&frame_table_lock);		
 				return f;
-    	}
-
-		//Need to change later
-  	PANIC ("NO MORE FRAMES");
 	}
 
 bool 
@@ -64,6 +76,64 @@ void free_frame(struct frame *f)
 		palloc_free_page(f->kpage);
 		free(f);
 		lock_release(&frame_table_lock);
+	}
+
+struct frame *
+frame_evict_get ()
+	{
+		// lock_acquire (&frame_table_lock);
+		for (int j = 0; j < 2; j++)
+			{
+				struct hash_iterator i;
+				hash_first (&i, &frame_table);
+				while (hash_next (&i))
+					{
+					struct frame *f = hash_entry (hash_cur (&i), struct frame, hash_elem);
+					struct spt_entry *spe = f->spe;
+					if (!f->pinned)
+						{
+							if (pagedir_is_accessed (f->owner->pagedir, spe->uaddr))
+								{
+									pagedir_set_accessed (f->owner->pagedir, spe->uaddr, false);
+								}
+							else
+								{
+									hash_delete (&frame_table, &f->hash_elem);
+									// lock_release (&frame_table_lock);
+									return f;
+								}
+						}
+					}
+			}
+		// lock_release (&frame_table_lock);
+		return NULL;
+	}
+
+void
+frame_evict (struct frame *f)
+	{
+		struct spt_entry *spe = f->spe;
+		bool is_dirty = pagedir_is_dirty (f->owner->pagedir, spe->uaddr);
+		enum vpt type = spe->vpt;
+
+		if (type == SWAP)
+			{
+				spe->swap_index = swap_out (f->kpage);
+			}
+		if (type == ELF_FILE && is_dirty)
+			{
+				spe->swap_index = swap_out (f->kpage);
+				spe->vpt = SWAP;
+			}
+		if (type == GEN_FILE && is_dirty)
+			{
+				file_write_at (spe->file, f->kpage, spe->file_page_size, spe->file_offset);
+			}
+
+		// hash_delete (&frame_table, &f->hash_elem);
+		pagedir_clear_page(f->owner->pagedir, spe->uaddr);
+		free_frame (f);
+		spe->in_memory = false;
 	}
 
 /* Returns a hash value for frame p. */

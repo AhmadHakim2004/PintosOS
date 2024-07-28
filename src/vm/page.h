@@ -24,11 +24,12 @@ struct spt_entry
 		bool writable;
 		bool in_memory;
 		enum vpt vpt;
+		int swap_index;
 	};	
 
 void init_spt (struct thread *);
-struct spt_entry * init_spt_entry (uint8_t *, struct frame *, struct file *, 
-								                   off_t, size_t, bool, bool, enum vpt);
+struct spt_entry * init_spt_entry (uint8_t *, enum palloc_flags, struct file *, 
+								    off_t, size_t, bool, bool, enum vpt);
 struct spt_entry *get_spt_entry(void *uaddr);
 bool load_file_page_to_mem (void *kpage, struct spt_entry *);
 
