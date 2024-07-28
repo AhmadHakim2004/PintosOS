@@ -69,6 +69,21 @@ swap in the corresponding swap in the swap table using the swap index which is i
 >> A5: Why did you choose the data structure(s) that you did for
 >> representing virtual-to-physical mappings?
 
+Both the supplemental page table and frame table is implemented as 
+hash tables. This is for several reasons including:
+
+There was an obvious key we could use for both the supplemental page table and
+frame table. For spt, we used the uaddr as the key since the address of the 
+user virtual page is unique. For frame table, we used the kernal virtual address
+for the key since thats also unique per page. 
+
+Using hash tables also gave us the advatange of faster searching/entry look-up 
+in functions such as "get_spt_entry", "frame_evict" etc. 
+
+Faster to delete entries in a hashtable as well. Especially useful when 
+we want to reclaim pages and delete spt and frame table entries. 
+
+
                PAGING TO AND FROM DISK
                =======================
 
