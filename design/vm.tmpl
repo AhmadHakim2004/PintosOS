@@ -32,6 +32,25 @@ N/A
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+/* Structure representing a frame in the system. */
+struct frame
+{
+  	struct hash_elem hash_elem;   /* Hash element for inserting into the frame table. */
+  	struct thread *owner;         /* The owner thread of the frame */
+  	bool pinned;                  /* Indicates if the frame is pinned (cannot be evicted) */
+  	struct spt_entry *spe;        /* Supplementary page table entry associated with the frame */
+  	void *kpage;                  /* Physical Page */
+};
+
+Added enum representing virtual page type:
+/* Virtual Page Type */
+enum vpt
+{
+	ELF_FILE,			    /* Exeutable file */
+	MAPPED_FILE,                        /* Mapped file */
+	SWAP                                /* Swap page */
+};
+
 ---- ALGORITHMS ----
 
 >> A2: In a few paragraphs, describe your code for accessing the data
