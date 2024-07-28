@@ -105,8 +105,8 @@ swap in the corresponding swap in the swap table using the swap index which is i
 >> how are races avoided?
 
 When two processes both need a frame at the same time they will both call "init_frame()" function. 
-In init_frame, we call "palloc_get_page()" which uses a bitmap to prevent two processes from 
-quering the bitmap at the same time. 
+In init_frame, we call "palloc_get_page()" which uses a lock to prevent two processes from 
+quering the bitmap of free pages at the same time. 
 
 If there are no pages available, palloc_get_page returns NULL and then we call evict frame to create space.
 Inside the frame evict function, we use a lock called frame_table_lock that ensures only one process
@@ -130,7 +130,7 @@ hash tables. This is for several reasons including:
 
 There was an obvious key we could use for both the supplemental page table and
 frame table. For spt, we used the uaddr as the key since the address of the 
-user virtual page is unique. For frame table, we used the kernal virtual address
+user virtual page is unique per page. For frame table, we used the kernal virtual address
 for the key since thats also unique per page. 
 
 Using hash tables also gave us the advatange of faster searching/entry look-up 
@@ -195,8 +195,8 @@ struct thread { ...
 >> the page that faulted.
 
 Firstly, we check if there exists a supplemental page table entry for the
-address that faulted. If there does not, there this tells us that it might 
-be a invalid virtual address that should cause the stack to be extended into the page that faulted. 
+address that faulted. If there does not,  this tells us that it might 
+be an invalid virtual address that should cause the stack to be extended into the page that faulted. 
 
 Before we can even validate if the faulty address should cause the stack to extend, 
 we first need the esp (stack pointer). If the page fault occured becuase of user, 
@@ -206,8 +206,8 @@ we obtain the esp through the saved_esp member in the current thread.
 Once we have the esp, we check if the faulting address is between PHYS_BASE and esp-32. 
 The stack starts at PHYS_BASE and the faulting address could occur from PHYS_BASE to esp-32
 because of the PUSH/PUSHA instrucitons. PUSH/PUSHA push at most 32 bytes at once,
-hence the faulting address could be up to esp-32. If the faulting address is withing the
-specified range mentioned, then we check if the page that faulty address belongs to
+hence the faulting address could be between PHYS_BASE and esp-32. If the faulting address is within the
+specified range mentioned, then we check if the page, that the faulty address belongs to,
 doesn't exceed the stacklimit. This is a simple check and we do this by 
 checking pg_round_down (fault_addr) <= PHYS_BASE - MAX_STACK_SIZE. If this is the case, 
 then we extend the stack by initializing a new spt_entry with its corresponding frame. 
