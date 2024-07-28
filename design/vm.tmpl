@@ -36,6 +36,24 @@ N/A
 
 >> A2: In a few paragraphs, describe your code for accessing the data
 >> stored in the SPT about a given page.
+Since the data is lazily loaded, we rely on spt to store information about pages when they are needed to be loaded. 
+Further, we do this using the help of the page fault handler. 
+
+On a page fault, we check if the not_present flag is true that is in the intr_frame passed to the page fault. 
+If not_present is true, then it means this page fault is a candidate to load data using spt. 
+
+We first find the associated supplemental page table entry for the faulting address using the current threads
+supplemental page table. If no spt entry is found, then this page fault could be a candidate for stack extension. 
+For how we extend the stack,  please see answer to B4. If its not stack extension, then we terminate the process. 
+
+If an spt entry is found, then this means we need to bring in the date from somwhere depending on the spt_entry 
+type (page type). If the page is of type ELF_TYPE (executable type), then we initialize a new frame, 
+link the spt_entry and frame, load the file to the page using the members in SPT and finally point the 
+page table entry for the faulting virtual address to the physical page. 
+
+If the page is of type SWAP, then the process initializes a frame, links the spt_entry to the frame,
+point the page table entry for the faulting virtual address to the physical page, read the swap and
+swap in the corresponding swap in the swap table using the swap index which is in the spt_entry. 
 
 >> A3: How does your code coordinate accessed and dirty bits between
 >> kernel and user virtual addresses that alias a single frame, or
