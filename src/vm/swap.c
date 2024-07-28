@@ -20,9 +20,7 @@ void init_swap_table (void)
 
     for (int i = 0; i < swap_table_size; i++)
         {
-        lock_acquire (&swap_table_lock);
         swap_table[i].free = true;
-        lock_release (&swap_table_lock);
         }
 
 }
@@ -32,9 +30,7 @@ void write_swap (void *uaddr, int index)
   int sectors = PGSIZE / BLOCK_SECTOR_SIZE;
   for (int i = 0; i < sectors; i++)
   {
-    lock_acquire (&swap_table_lock);
     block_write (swap_block, index * sectors + i, uaddr + i * BLOCK_SECTOR_SIZE);
-    lock_release (&swap_table_lock);
   }
 }
 
@@ -43,25 +39,24 @@ void read_swap (void *uaddr, int index)
   int sectors = PGSIZE / BLOCK_SECTOR_SIZE;
   for (int i = 0; i < sectors; i++)
   {
-    lock_acquire (&swap_table_lock);
     block_read (swap_block, index * sectors + i, uaddr + i * BLOCK_SECTOR_SIZE);
-    lock_release (&swap_table_lock);
   }
 }
 
 int swap_out (void *uaddr)
 {
+  lock_acquire (&swap_table_lock);
   for (int i = 0; i < swap_table_size; i++)
     {
       if (swap_table[i].free)
         {
-          lock_acquire (&swap_table_lock);
           swap_table[i].free = false;
-          lock_release (&swap_table_lock);
           write_swap (uaddr, i);
+          lock_release (&swap_table_lock);
           return i;
         }
     }
+  lock_release (&swap_table_lock);
   return -1;
 }
 
@@ -72,9 +67,9 @@ void swap_in (void *uaddr, int index)
   if (swap_table[index].free)
     return;
 
-  read_swap (uaddr, index);
   lock_acquire (&swap_table_lock);
   swap_table[index].free = true;
+  read_swap (uaddr, index);
   lock_release (&swap_table_lock);
 }
 
