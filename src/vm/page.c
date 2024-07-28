@@ -19,13 +19,13 @@ init_spt (struct thread *t)
 	}
 
 struct spt_entry *
-init_spt_entry (uint8_t *uaddr, struct frame *frame, struct file *file,
-					 off_t file_offset, size_t file_page_size, bool writable,
-					 bool in_memory, enum vpt vpt)
+init_spt_entry (uint8_t *uaddr, enum palloc_flags flags, struct file *file, off_t file_offset, 
+				size_t file_page_size, bool writable, bool in_memory, enum vpt vpt)
 	{
 		struct spt_entry *spt_entry = malloc(sizeof (struct spt_entry));
         spt_entry->uaddr = uaddr;
-        spt_entry->frame = frame;
+		if (flags != 0)
+        	init_frame (flags, spt_entry);
       	spt_entry->file = file;
         spt_entry->file_offset = file_offset;
         spt_entry->file_page_size = file_page_size;
