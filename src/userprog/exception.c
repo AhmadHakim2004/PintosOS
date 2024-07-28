@@ -9,6 +9,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "vm/page.h"
+#include "vm/swap.h"
 
 
 /* Number of page faults processed. */
@@ -179,9 +180,9 @@ page_fault (struct intr_frame *f)
 							//stack limit check
 							if (!((void *)uaddr <= PHYS_BASE - MAX_STACK_SIZE))
 								{
-									
-									struct spt_entry *spt_entry = init_spt_entry (uaddr, PAL_USER, NULL, 0, PGSIZE, true, false, SWAP);
-                           struct frame *frame = spt_entry->frame;
+                           struct frame *frame = init_frame (PAL_USER);
+                           struct spt_entry *spt_entry = init_spt_entry (uaddr, frame, NULL, 0, PGSIZE, true, false, SWAP);
+                           frame->spe = spt_entry;
 
 									bool install_success = 
 																link_frame_to_uaddr (uaddr, frame->kpage,	
@@ -201,7 +202,9 @@ page_fault (struct intr_frame *f)
 				}
 				else if (spt_entry->vpt == ELF_FILE)
 					{
-						struct frame *frame = init_frame (PAL_USER, spt_entry);
+						struct frame *frame = init_frame (PAL_USER);
+                  frame->spe = spt_entry;
+                  spt_entry->frame = frame;
 
 						bool load_success = load_file_page_to_mem (frame->kpage, 
 																				 spt_entry);
@@ -218,9 +221,16 @@ page_fault (struct intr_frame *f)
 						return;
 					}
                else if (spt_entry->vpt == SWAP){
-                  struct frame *frame = init_frame (PAL_USER, spt_entry);
+                  struct frame *frame = init_frame (PAL_USER);
+                  frame->spe = spt_entry;
+                  spt_entry->frame = frame;
                   frame->pinned = true;
+                  bool suc = install_page(spt_entry->uaddr, frame->kpage, spt_entry->writable);
+
+                  if (!suc)
+                     PANIC("KILL burh");
                   swap_in (frame->kpage, spt_entry->swap_index);
+   
                   frame->pinned = false;
                   
                }

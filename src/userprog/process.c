@@ -545,7 +545,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      init_spt_entry (upage, 0, file, ofs, page_read_bytes, writable, false, 
+      init_spt_entry (upage, NULL, file, ofs, page_read_bytes, writable, false, 
                       ELF_FILE);
 
       /* Advance. */
@@ -566,15 +566,23 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
 
-  struct spt_entry *spe = init_spt_entry (((uint8_t *) PHYS_BASE) - PGSIZE, PAL_USER | PAL_ZERO, NULL, 0, PGSIZE, true, false, SWAP);
-  kpage = spe->frame->kpage;
+  struct frame *frame = init_frame (PAL_USER | PAL_ZERO);
+  kpage = frame->kpage;
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
+        {
           *esp = PHYS_BASE;
+
+          struct spt_entry *spe = init_spt_entry (((uint8_t *) PHYS_BASE) - PGSIZE, frame, NULL, 0, 
+                          PGSIZE, true, false, SWAP);
+          frame->spe = spe; 
+        }
       else
-        spt_entry_destory (&spe->hash_elem, NULL);
+      {
+        free_frame(frame);
+      }
     }
   return success;
 }
