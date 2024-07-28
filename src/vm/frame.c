@@ -27,7 +27,7 @@ void init_frame_table()
 
 
 struct frame *
-init_frame (enum palloc_flags flags, struct spt_entry *spe)
+init_frame (enum palloc_flags flags)
 	{
 		// lock_acquire(&frame_table_lock);
 
@@ -51,8 +51,6 @@ init_frame (enum palloc_flags flags, struct spt_entry *spe)
       	f->kpage = page;
 		f->pinned = false;
 		f->owner = thread_current();
-		f->spe = spe;
-		spe->frame = f;
 		
 				hash_insert (&frame_table, &f->hash_elem);
 				// lock_release(&frame_table_lock);		
@@ -73,6 +71,7 @@ void free_frame(struct frame *f)
 	{
 		lock_acquire(&frame_table_lock);
 		hash_delete(&frame_table, &f->hash_elem);
+
 		palloc_free_page(f->kpage);
 		free(f);
 		lock_release(&frame_table_lock);
@@ -130,7 +129,7 @@ frame_evict (struct frame *f)
 				file_write_at (spe->file, f->kpage, spe->file_page_size, spe->file_offset);
 			}
 
-		// hash_delete (&frame_table, &f->hash_elem);
+		hash_delete (&frame_table, &f->hash_elem);
 		pagedir_clear_page(f->owner->pagedir, spe->uaddr);
 		free_frame (f);
 		spe->in_memory = false;
