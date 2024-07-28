@@ -80,7 +80,7 @@ void free_frame(struct frame *f)
 struct frame *
 frame_evict_get ()
 	{
-		// lock_acquire (&frame_table_lock);
+		lock_acquire (&frame_table_lock);
 		for (int j = 0; j < 2; j++)
 			{
 				struct hash_iterator i;
@@ -91,20 +91,20 @@ frame_evict_get ()
 					struct spt_entry *spe = f->spe;
 					if (!f->pinned)
 						{
-							if (pagedir_is_accessed (f->owner->pagedir, spe->uaddr))
+							if (f->owner->pagedir != NULL && pagedir_is_accessed (f->owner->pagedir, spe->uaddr))
 								{
 									pagedir_set_accessed (f->owner->pagedir, spe->uaddr, false);
 								}
 							else
 								{
-									hash_delete (&frame_table, &f->hash_elem);
-									// lock_release (&frame_table_lock);
+									// hash_delete (&frame_table, &f->hash_elem);
+									lock_release (&frame_table_lock);
 									return f;
 								}
 						}
 					}
 			}
-		// lock_release (&frame_table_lock);
+		lock_release (&frame_table_lock);
 		return NULL;
 	}
 
