@@ -8,18 +8,20 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Ahmad Hakim ahmad.hakim@mail.utoronto.ca
+Ansh Aneel ansh.aneel@mail.utoronto.ca
+Syed Asad Hussain asadh.syed@mail.utoronto.ca
 
 ---- PRELIMINARIES ----
 
 >> If you have any preliminary comments on your submission, notes for the
 >> TAs, or extra credit, please give them here.
+N/A
 
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
+N/A
 
             PAGE TABLE MANAGEMENT
             =====================
@@ -144,14 +146,67 @@ struct thread { ...
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+Added mapping field to thread struct:
+#ifdef VM
+    struct hash mappings;                   /* Mappings Table */
+#endif
+
+Created mapped_file struct:
+struct mapped_file
+	{
+		mapid_t id;                         /* Map ID */
+		void *addr;                         /* Mapped file's user address */ 
+		struct file *file;                  /* Mapped file */
+		size_t size;                        /* Mapped file's size */
+
+		struct hash_elem hash_elem;         /* Hash elem for hash table */
+	};
+
+Added enum representing virtual page type:
+/* Virtual Page Type */
+enum vpt
+	{
+		ELF_FILE,			    /* Exeutable file */
+		MAPPED_FILE,                        /* Mapped file */
+		SWAP                                /* Swap page */
+	};
+
 ---- ALGORITHMS ----
 
 >> C2: Describe how memory mapped files integrate into your virtual
 >> memory subsystem.  Explain how the page fault and eviction
 >> processes differ between swap pages and other pages.
 
+Each thread has its own mappings hash table to store all the mapped files.
+When mmap is called, we add the passed file into this hash table, and when
+munmap is called we remove it from the hashtable and write any dirty pages back
+to the original file.
+
+When a page fault occures. We check the type of page at the fault address.
+
+If it's a swap page:
+We obtains a new frame in memory and move this page from the swap table to that
+new frame.
+
+Otherwise:
+We obtain a new frame in memory and load a page from the file into that frame.
+
+If there's no available frames then we need to evict a frame into the swap 
+table to make space. In eviction:
+
+If we're evicting a frame holding a swap page or an executable page that's dirty
+we move it to the swap table. Wheras if we're evicting mapped files pages that
+are dirty we write them back to the mapped file. And in both cases the frame is
+freed so that it can be used.
+
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
+
+In the mmap syscall handler, before allocating supplemental page entries for 
+the mapped file, we loop and check if the address passed in to the syscall is
+already referenced by an existing supplemental page entry (its an existing 
+segment) as well as all the addresses we'll need to allocate a sup page entry 
+for. If any of them are already referenced, we return -1.
 
 ---- RATIONALE ----
 
@@ -161,6 +216,18 @@ struct thread { ...
 >> that much of their implementation can be shared.  Explain why your
 >> implementation either does or does not share much of the code for
 >> the two situations.
+
+For page faults:
+Both mappings created with mmap and data demand-paged executables have the same
+implementation, which is obtaining a frame, load the file page to that frame 
+and then link the frame's physical address to the spt entry's user address
+Therefore we put both of them in the same if condition and have them share the 
+implementation code.
+
+For frame evition:
+Frames for data demand-paged from executables need to be written to the swap 
+wheras the frames for mappings created with mmap need to be written back to the
+original file therefore we don't have them share the same code in this case.
 
                SURVEY QUESTIONS
                ================
