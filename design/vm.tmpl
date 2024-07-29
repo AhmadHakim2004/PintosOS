@@ -306,6 +306,17 @@ case where two processes will wait on each other.
 >> cannot interfere by e.g. attempting to evict the frame while it is
 >> still being read in?
 
+To ensure that a second process Q cannot interfere with a frame being read in due to a page fault 
+in process P, we use synchronization mechanisms and status flags. When a page fault occurs with a valid address, 
+the handler allocates a frame for the missing page and marks it as pinned by setting the pinned 
+flag in the frame structure. The frame table is protected by a lock (frame_table_lock), ensuring 
+atomic operations during frame allocation. The find_evict_frame function checks the pinned flag and 
+skips pinned frames during eviction, preventing process Q from evicting a frame still being read into 
+memory for process P. Once the read operation completes and the page is fully loaded, the pinned flag 
+is cleared, allowing future evictions if necessary. This coordinated use of the pinned flag and locks 
+maintains the integrity of frame allocation and eviction processes, preventing interference from other 
+processes.
+
 >> B8: Explain how you handle access to paged-out pages that occur
 >> during system calls.  Do you use page faults to bring in pages (as
 >> in user programs), or do you have a mechanism for "locking" frames
