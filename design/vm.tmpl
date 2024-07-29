@@ -99,6 +99,16 @@ swap in the corresponding swap in the swap table using the swap index which is i
 >> kernel and user virtual addresses that alias a single frame, or
 >> alternatively how do you avoid the issue?
 
+In our code, the coordination of accessed and dirty bits between kernel and user virtual addresses 
+that alias a single frame is managed through our spt_entry and frame structures. The spt_entry 
+structure maintains information about the virtual page, including its address (uaddr), associated 
+frame (frame), and other relevant metadata like file mappings and swap indices. The frame structure 
+tracks the physical frame and its associated kernel page (kpage), along with a reference to the 
+corresponding spt_entry. When a user accesses a virtual address, we update the frame structure's 
+status and propagate these changes to the spt_entry to ensure that the accessed and dirty bits are 
+accurately tracked. This coordination allows us to maintain consistency between the kernel and user 
+views of the memory.
+
 ---- SYNCHRONIZATION ----
 
 >> A4: When two user processes both need a new frame at the same time,
