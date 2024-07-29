@@ -222,7 +222,7 @@ thread_create (const char *name, int priority,
   #endif
 
   #ifdef VM
-    init_spt(t);
+    init_spt (t);
     init_mappings (t);
     t->last_mapid = 0;
   #endif

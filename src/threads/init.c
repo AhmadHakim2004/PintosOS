@@ -133,8 +133,8 @@ main (void)
 
 
 #ifdef VM
-  init_frame_table();
-  init_swap_table();
+  init_frame_table ();
+  init_swap_table ();
 #endif
 
   printf ("Boot complete.\n");

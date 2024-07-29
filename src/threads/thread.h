@@ -97,7 +97,7 @@ struct thread
     struct thread *parent;              /* Parent thread. */
     struct list children;               /* List of child threads. */
     struct list_elem allelem;           /* List element for all threads list. */
-    uint8_t *saved_esp;
+    uint8_t *saved_esp;                 /* Saved stack pointer. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -110,8 +110,8 @@ struct thread
 
 #ifdef VM
     struct hash spt;                    /* Supplemental Page Table*/
-    struct hash mappings;
-    int last_mapid;
+    struct hash mappings;               /* Hash table for memory mapping */
+    int last_mapid;                     /* Last mapped id */
 #endif
 
     /* Owned by thread.c. */
