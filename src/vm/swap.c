@@ -10,40 +10,51 @@ static struct lock swap_table_lock;
 static struct block *swap_block;
 static int swap_table_size;
 
-void init_swap_table (void)
+/* Initializes the swap table and the swap table lock */
+void 
+init_swap_table (void)
 {
   lock_init (&swap_table_lock);
   swap_block = block_get_role (BLOCK_SWAP);
 
   swap_table_size = (block_size (swap_block) * BLOCK_SECTOR_SIZE) / PGSIZE;
-  swap_table = malloc(swap_table_size * sizeof(struct swap_entry));
+  swap_table = malloc (swap_table_size * sizeof (struct swap_entry));
 
     for (int i = 0; i < swap_table_size; i++)
-        {
+      {
         swap_table[i].free = true;
-        }
+      }
 
 }
 
-void write_swap (void *uaddr, int index)
+/* Writes bytes from UADDR to a swap slot with index INDEX */
+void 
+write_swap (void *uaddr, int index)
 {
   int sectors = PGSIZE / BLOCK_SECTOR_SIZE;
   for (int i = 0; i < sectors; i++)
-  {
-    block_write (swap_block, index * sectors + i, uaddr + i * BLOCK_SECTOR_SIZE);
-  }
+    {
+      block_write (swap_block, index * sectors + i, 
+                   uaddr + i * BLOCK_SECTOR_SIZE);
+    }
 }
 
-void read_swap (void *uaddr, int index)
+
+/* Reads bytes from swap slot at index INDEX to UADDR */
+void 
+read_swap (void *uaddr, int index)
 {
   int sectors = PGSIZE / BLOCK_SECTOR_SIZE;
   for (int i = 0; i < sectors; i++)
-  {
-    block_read (swap_block, index * sectors + i, uaddr + i * BLOCK_SECTOR_SIZE);
-  }
+    {
+      block_read (swap_block, index * sectors + i, 
+                  uaddr + i * BLOCK_SECTOR_SIZE);
+    }
 }
 
-int swap_out (void *uaddr)
+/* Finds a free swap and swaps out the page at UADDR */
+int 
+swap_out (void *uaddr)
 {
   lock_acquire (&swap_table_lock);
   for (int i = 0; i < swap_table_size; i++)
@@ -56,11 +67,15 @@ int swap_out (void *uaddr)
           return i;
         }
     }
+
   lock_release (&swap_table_lock);
   return -1;
 }
 
-void swap_in (void *uaddr, int index)
+/* Swaps in the data from swap entry at INDEX in the swap table 
+   to page at UADDR */
+void 
+swap_in (void *uaddr, int index)
 {
   if (index < 0 || index >= swap_table_size)
     return;
