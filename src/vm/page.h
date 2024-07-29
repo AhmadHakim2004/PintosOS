@@ -8,9 +8,9 @@
 /* Virtual Page Type */
 enum vpt
 	{
-		ELF_FILE,													/* READ ONLY file */
-		GEN_FILE,													/* Mapped file */
-		SWAP															/* Swap page */
+		ELF_FILE,							/* Exeutable file */
+		MAPPED_FILE,                        /* Mapped file */
+		SWAP                                /* Swap page */
 	};
 
 

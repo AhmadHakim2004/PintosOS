@@ -66,7 +66,8 @@ link_frame_to_uaddr (void *uaddr, void *kpage, bool writable)
 void free_frame (struct frame *f)
 	{
 		lock_acquire (&frame_table_lock);
-		pagedir_clear_page (f->owner->pagedir, f->spe->uaddr);
+		if (f->owner != NULL)
+		  pagedir_clear_page (f->owner->pagedir, f->spe->uaddr);
 		hash_delete (&frame_table, &f->hash_elem);
 		palloc_free_page (f->kpage);
 		free (f);
@@ -123,7 +124,7 @@ frame_evict (struct frame *f)
 				spe->swap_index = swap_out (f->kpage);
 				spe->vpt = SWAP;
 			}
-		if (type == GEN_FILE && is_dirty)
+		if (type == MAPPED_FILE && is_dirty)
 			{
 				file_write_at (spe->file, f->kpage, spe->file_page_size, 
 											 spe->file_offset);
