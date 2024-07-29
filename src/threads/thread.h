@@ -4,6 +4,8 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <hash.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -23,6 +25,10 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+
+/* Max stack size */
+#define MAX_STACK_SIZE 0x800000
 
 /* A kernel thread or user process.
 
@@ -88,7 +94,10 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    struct thread *parent;              /* Parent thread. */
+    struct list children;               /* List of child threads. */
     struct list_elem allelem;           /* List element for all threads list. */
+    uint8_t *saved_esp;                 /* Saved stack pointer. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -96,11 +105,28 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct pcb *pcb;                    /* Threads PCB */  
+#endif
+
+#ifdef VM
+    struct hash spt;                    /* Supplemental Page Table*/
+    struct hash mappings;               /* Hash table for memory mapping */
+    int last_mapid;                     /* Last mapped id */
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+struct child_thread_info 
+   {
+      tid_t tid;                        /* Thread identifier. */
+      int exit_status;                  /* Exit status. */
+      bool loaded;                      /* Thread's executable load status. */
+      struct semaphore load_sema;       /* Semaphore for executable loading. */
+      struct semaphore exit_sema;       /* Semaphore for thread exiting. */
+      struct list_elem elem;            /* List element. */
+   };
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -137,5 +163,9 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+struct list_elem *find_child_thread_elem (struct thread *, tid_t);
+struct child_thread_info *find_child_thread (struct thread *, tid_t);
+void free_child_threads (void);
 
 #endif /* threads/thread.h */

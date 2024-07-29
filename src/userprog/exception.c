@@ -2,8 +2,13 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include "userprog/gdt.h"
+#include "userprog/process.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "vm/page.h"
+#include "vm/swap.h"
+
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -123,7 +128,6 @@ static void
 page_fault (struct intr_frame *f) 
 {
   bool not_present;  /* True: not-present page, false: writing r/o page. */
-  bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
 
@@ -145,17 +149,56 @@ page_fault (struct intr_frame *f)
 
   /* Determine cause. */
   not_present = (f->error_code & PF_P) == 0;
-  write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+  if (!not_present)
+    thread_exit ();
+
+	struct spt_entry *spe = get_spt_entry (fault_addr);
+
+	if (spe == NULL)
+		{
+			void *esp = user ? f->esp : thread_current ()->saved_esp;
+      void *uaddr = pg_round_down (fault_addr);
+						
+			if (fault_addr >= PHYS_BASE || fault_addr < esp - 32 
+          || uaddr < PHYS_BASE - MAX_STACK_SIZE)
+				kill (f);
+      
+      struct frame *frame = init_frame (PAL_USER);
+      struct spt_entry *new_spe = init_spt_entry (uaddr, frame, NULL, 0, 
+                                                  PGSIZE, true, true, SWAP);
+      frame->spe = new_spe;
+
+			if (!link_frame_to_uaddr (uaddr, frame->kpage, new_spe->writable))
+				kill (f);				
+    }																						
+	
+  else if (spe->vpt == ELF_FILE || spe->vpt == MAPPED_FILE)
+		{
+			struct frame *frame = init_frame (PAL_USER);
+      frame->spe = spe;
+      spe->frame = frame;
+
+			bool load_success = load_file_page_to_mem (frame->kpage, spe);
+      bool install_success = link_frame_to_uaddr (spe->uaddr, frame->kpage,
+																	                spe->writable);
+
+			if (!load_success || !install_success)
+				kill (f);
+		}
+
+  else if (spe->vpt == SWAP)
+    {
+      struct frame *frame = init_frame (PAL_USER);
+      frame->spe = spe;
+      spe->frame = frame;
+
+      frame->pinned = true;
+      if (!link_frame_to_uaddr (spe->uaddr, frame->kpage, spe->writable))
+        kill (f);
+      swap_in (frame->kpage, spe->swap_index);
+      frame->pinned = false;           
+    } 
 }
 

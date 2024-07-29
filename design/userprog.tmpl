@@ -8,18 +8,20 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Ahmad Hakim ahmad.hakim@mail.utoronto.ca
+Ansh Aneel ansh.aneel@mail.utoronto.ca
+Syed Asad Hussain asadh.syed@mail.utoronto.ca
 
 ---- PRELIMINARIES ----
 
 >> If you have any preliminary comments on your submission, notes for the
 >> TAs, or extra credit, please give them here.
+N/A
 
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.
+N/A
 
                ARGUMENT PASSING
                ================
@@ -30,19 +32,51 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+N/A.
+No new struct was added, no struct memeber/struct was changed, 
+no global or static variable was added, no new typedef or enumeration 
+was added/changed for the purposes of implementing argument passing. 
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+Argument passing is implmented through stack. When the executable file 
+is successfully loaded, start_process() calls setup_args that parses the 
+command line arguments and sets up the args in the stack.
+
+Inside start_process(), we use strtok_r on the "file_name" variable 
+that is passed to start_process to get the args. We follow the 80x86 
+calling convention argument passing style. 
+
+Once all the relevant info is pushed to the stack, we check for stack overflow. 
+We do this by checking if the esp pointer is still within valid bounds.
+For this project, esp must be between PHYS_BASE and PHYS_BASE + PGSIZE.
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
+Pintos implements strtok_r() instead of strtok() to ensure thread safety. 
+Unlike strtok(), which uses a static buffer to track token positions, 
+strtok_r() takes an extra argument to store this state. This prevents issues 
+where a context switch between threads could cause one thread to alter the 
+state being used by another, leading to unexpected behavior. With strtok_r(), 
+each thread maintains its own tokenization state, ensuring safe and predictable 
+operation in a multi-threaded environment.
+
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
+
+1) The Unix approach the shell is responsible for argument validation from the 
+command line, reducing time and resources used by the kernel, reducing 
+resources used in the kernel
+2) The Unix approach allows for more flexibility. This modularity means that 
+enhancements or bug fixes can be applied to the shell without needing to modify 
+the kernel, leading to more rapid development
 
                  SYSTEM CALLS
                  ============
@@ -53,14 +87,72 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+Added to struct thread:
+    struct thread *parent;              /* Parent thread. */
+    struct list children;               /* List of child threads. */
+    #ifdef USERPROG
+        struct pcb *pcb;                /* Threads PCB */  
+    #endif
+
+Added new struct child_thread_info:
+struct child_thread_info 
+   {
+      tid_t tid;                        /* Thread identifier. */
+      int exit_status;                  /* Exit status. */
+      bool loaded;                      /* Thread's executable load status. */
+      struct semaphore load_sema;       /* Semaphore for executable loading. */
+      struct semaphore exit_sema;       /* Semaphore for thread exiting. */
+      struct list_elem elem;            /* List element. */
+   };
+
+Added new struct fds:
+struct fds
+  {
+    int fd;                           /* File descriptor */
+    char *file_name;                  /* File name associated with fd */
+    struct file *fp;                  /* Pointer to the file */
+    struct list_elem elem;            /* List element */ 
+  };
+
+Added new struct pcb:
+struct pcb
+	{
+		struct thread *parent_thread;   /* Thread that spawns the process thread */
+		struct thread *process_thread;  /* Process thread */
+		struct list_elem elem;          /* List element */
+		struct file *file;              /* Process executable file */
+        struct list fd_table;           /* Process's list of fds */ 
+        int highest_fd;                 /* Process's highest fd */
+	};
+
+Added global variable in syscall.c:
+static struct lock lock;	// Must aquire to execute file-related syscalls
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+
+When a process is created, the highest_fd field in the pcb struct is set to 1, 
+because we already have fd=0 for the keyboard and fd=1 for the console. 
+Now when this process opens a file, it sets the fd for it within its fd table 
+to highest_fd + 1 (i.e. the first file opened by a process will have fd=2). 
+This will happen for every process seperately so each process will have fd=0,1 
+set for the keyboard and console, and will start assigning fds to opened files 
+from 2,3,4,... onwards. Therefore the file descriptors are unique just within a 
+single process.
 
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
+
+We're doing so in the syscall handler where we get the interrupt code and 
+arguements from the stack pointer then check that those pointers are valid 
+(not a null pointer, not a pointer to unmapped virtual memory, and not a 
+pointer to kernel virtual address space (if so we're exiting the thread)). 
+If the deferenced pointer is a pointer too, we verify that the deferenced 
+pointer is valid too. Once everything is verified, we execute the system call 
+and write the return value if it exists to the eax field in the interrupt frame
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -69,8 +161,61 @@ FirstName LastName <email@domain.example>
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
+For each system call, we validate the pointers by validating the start address
+and the last address by validating that the pointer is not NULL, and that the
+start address is a user address and its mapped virtual memory, and that the 
+last address is a user address and if its in a different page, we also check
+that its mapped to virtual memory. 
+
+Except that for system calls that passes a file name without the length, we 
+cant find the last address easily so we have to check the address for each
+character in the filename. As in, we check that the pointer is not null and 
+that the start address is a user address and its mapped virtual memory like 
+before, but then we go over the addresses of the remaining characters one by 
+one and check that they're user addresses and if we cross a page boundary we 
+check that the address is mapped virtual memorty (we do that for 14 characters
+as the max number of characters in a file name is 14). That means that we only
+check the page table for the start address, and for the first address in a new
+page if we cross a page boundary.
+
+Therefore for the full page (4,096 bytes) case:
+a) Least number of inspections is 1, if the whole data is within one page 
+exactly (we dont cross a page boundary), then we'll only inspect the page table
+for the start address and not the last address.
+
+b) Greatest number of inspections is 2, if the data crosses a page boundary at
+some point, meaning that it spans across 2 pages, we'll inspect the page table
+for the start address AND the last address.
+
+For the 2 bytes case we get the same answers:
+a) Least number of inspections is 1, if both bytes are within one page (we dont 
+cross a page boundary), then we'll only inspect the page table for the start 
+address and not the last address.
+
+b) Greatest number of inspections is 2, if the 2 bytes overlap a page boundary
+then we'll inspect the page table
+for the first byte's address AND the second byte's address.
+
+We can improve this by making sure that the data is always copied into a single
+page, so that we only need to inspect the page table once.
+
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+The wait system call is handled by the wait system handler. The wait system 
+handler in turn calls process_wait(). process_wait() loops over the children 
+processes and find the child struct of the child thread that the current thread 
+needs to wait on. 
+It then calls sema_down on "exit_sema" which is a semaphore member in the 
+childs struct and which is set to 1 and sema_down is called on it when 
+thread_create is called for the child process. This ensures the current thread 
+waits on the child thread until sema_up is called on "exit_sema" of the child 
+thread. 
+
+Inside process_exit() is when the child thread sema ups the "exit_sema". 
+Meaning that the parent thread won't be able to continue running until the
+child its waiting on exits. The parent thread accesses the childs exit status 
+by reading the exit_status member of the child struct. 
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -86,12 +231,41 @@ FirstName LastName <email@domain.example>
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+Before executing a system call handler, we verify that the pointers passed by 
+the user are valid meaning the lock to perform file-related system won't be 
+acquired if the user passes a bad pointer value.
+Furthermore, the resources allocated like the files opened, pcb struct, 
+child_thread_info struct are all freed at the thread_exit call of either the
+process itself or its parent. More specifically, the files are closed and the 
+pcb struct is freed on the thread_exit call of the process itself, and its 
+child_thread_info struct is freed when its parent exits.
+Since we call thread_exit () when we validate a bad pointer value, we ensure 
+that files and pcb struct are closed/freed even if the user passes a bad 
+pointer value
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+
+When the exec system call is called, the exec handler calls process_execute()
+on the new file. When the new thread for the exec process is created, its added
+as a child thread of the current running thread. The child thread struct
+contains a "load_sema" sempahore which is initalized to one and it calls 
+sema_down on when its created. Back in exec handler, the current running thread 
+calls sema_down on "child->load_sema" which forces the current running thread 
+to wait until the child thread calls sema_up on its "load_sema".
+The child thread calls sema_up on its load_sema once the file has been loaded
+in start_process and sets its loaded member to the load success/failure status. 
+This is how we make sure that the current thread does not return until the exec 
+has finished loading.
+
+Once the current thread can continue running after sema_down it retrieves the 
+load success/failure status by reading the loaded boolean member of the childs 
+threads' struct. and returns -1 if its failure, and the childs tid if its 
+successful.
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -100,16 +274,93 @@ FirstName LastName <email@domain.example>
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+We're using the semaphore exit_sema which is a field in the child_thread_info 
+struct. For process P to create a child process C, process_execute gets called
+which calls thread_create, inside thread_create, we set the C's parent to P,
+add C to P's list of children and call sema_down on exit_sema. After that
+process_execute returns with C's tid for P to be able to wait on it.
+
+If P calls wait(C) before C exits:
+wait calls process_wait which finds the child_thread_info struct associated
+with C and call sema_down on exit_sema. Since sema_up hasn't been called yet
+on it, process_wait will get stuck on the sema_down call till sema_up is called.
+When C exits, thread_exit will be called which will call process_exit, there we
+call close_files to closes all the files in the fd_table of C as well as C's
+executable and free_child_threads which free all the child_thread_info structs
+associated with C's child threads if there's any, we'll then free C's pcb as 
+well as the page directory and set the exit status. In this function, sema_up 
+is called on exit_sema therefore P can continue running now in process_wait 
+where it will remove C from the children list and free the child_thread_info 
+struct associated with C and return with the exit status of C. 
+This way all files opened by C as well as the pcb and child_thread_info structs 
+associated with it are closed/freed by the time C exits and P finished waiting. 
+Synchronization is achieved such that P doesnt continue running until C exits.
+
+If P calls wait(C) after C exits:
+When C exits, thread_exit will be called which will call process_exit, there we
+call close_files to closes all the files in the fd_table of C as well as C's
+executable and free_child_threads which free all the child_thread_info structs
+associated with C's child threads if there's any, we'll then free C's pcb as
+well as the page directory and set the exit status. In this function, sema_up is 
+called on exit_sema therefore sema_down can be called on exit_sema and not wait.
+When wait starts running it calls process_wait which finds the child_thread_info 
+struct associated with C and call sema_down on exit_sema, and will continue 
+running where it will remove C from the children list and free the 
+child_thread_info struct associated with C and return with the exit status of C. 
+This way all files opened by C as well as the pcb and child_thread_info structs 
+associated with it are closed/freed by the time C exits and P finished waiting. 
+Synchronization is achieved such that P doesnt continue running until C exits.
+
+If P terminates without waiting, before C exits:
+When P terminates without waiting, P will call thread_exit will be called which 
+will call process_exit, there we call close_files to closes all the files in the
+fd_table of P as well as P's executable and free_child_threads which frees all 
+the child_thread_info structs associated with P's child threads if there's any, 
+we'll then free P's pcb as well as the page directory and set the exit status.
+After that C exits and it will go through the same process and closes all the 
+files in the fd_table of C as well as C's executable and free all the 
+child_thread_info structs associated with C's child threads if there's any, 
+we'll then free C's pcb as well as the page directory and set the exit status
+Therefore C still handled closing its files and freeing its pcb struct and P
+still handled freeing the child_thread_info struct associated with C since it
+freed all its children's child_thread_info structs.
+Synchronization is not needed since P doesnt wait on C
+
+If P terminates without waiting, after C exits:
+The same happens except that C exits first so it closes its files and frees its
+pcb struct first and then P exits and frees the child_thread_info struct for C.
+We still freed all the resources we needed to free.
+Synchronization is also not needed since P doesnt wait on C
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
+We preferred code readability and ease of implementation over faster execution.
+Our method(First method) allowed us to validate a pointer fully first before 
+continuing execution meaning that we guarante the code running sequentially 
+after the validation check is passed rather than having the possibility of a 
+sudden page_fault triggering the page_fault handler code in the middle of our
+system call handler execution.
+
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+Advantages:
+-Easy to keep track of each proceses's fds
+-Easy to keep track of the fds associated file name and file pointer
+-Easy to keep track of last used FD when assigning new fds
+
+Disadvantages
+-Unable to resuse fds since new fds are being assigned the next highest fd 
+that the process has allocated. 
+
+
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+
+We did not change it.
 
                SURVEY QUESTIONS
                ================

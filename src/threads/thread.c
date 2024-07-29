@@ -11,10 +11,14 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
-
+#ifdef VM
+#include "vm/page.h"
+#include "vm/mapped_file.h"
+#endif
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -98,6 +102,8 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  initial_thread->parent = NULL;
+  list_init (&initial_thread->children);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -182,6 +188,18 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+  t->parent = thread_current ();
+  list_init (&t->children);
+
+  struct child_thread_info *cti = malloc (sizeof (struct child_thread_info));
+  cti->tid = t->tid;
+  cti->exit_status = -1;
+  cti->loaded = false;
+  sema_init (&cti->load_sema, 1);
+  sema_init (&cti->exit_sema, 1);
+  sema_down (&cti->load_sema);
+  sema_down (&cti->exit_sema);
+  list_push_back (&thread_current ()->children, &cti->elem);
 
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -197,6 +215,17 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
+
+  #ifdef USERPROG
+    //set up process control block for this new process
+    init_process_control_block(t);
+  #endif
+
+  #ifdef VM
+    init_spt (t);
+    init_mappings (t);
+    t->last_mapid = 0;
+  #endif
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -375,6 +404,48 @@ thread_get_recent_cpu (void)
   /* Not yet implemented. */
   return 0;
 }
+
+/* Find the child thread element, with tid child_tid, of the parent thread. */
+struct list_elem *
+find_child_thread_elem (struct thread *parent, tid_t child_tid)
+{
+  struct child_thread_info *cti;
+  for (struct list_elem *e = list_begin (&parent->children); 
+       e != list_end (&parent->children); e = list_next (e))
+        {
+          cti = list_entry (e, struct child_thread_info, elem);
+          if (cti->tid == child_tid)
+            return e;
+        }
+
+  return NULL;
+}
+
+/* Find the child thread, with tid child_tid, of the parent thread. */
+struct child_thread_info *
+find_child_thread (struct thread *parent, tid_t child_tid)
+{
+  struct list_elem *e = find_child_thread_elem (parent, child_tid);
+  return (e == NULL) ? NULL : list_entry (e, struct child_thread_info, elem);
+}
+
+void 
+free_child_threads ()
+  {
+    struct child_thread_info *child_thread;
+    struct list_elem *e = list_begin (&thread_current ()->children);
+
+    enum intr_level old_level = intr_disable ();
+    while (e != list_end (&thread_current ()->children)) 
+    {
+      struct list_elem *next = list_next (e);
+      child_thread = list_entry (e, struct child_thread_info, elem);
+      list_remove (e);
+      free (child_thread);
+      e = next;
+    }
+    intr_set_level (old_level);
+  }
 
 /* Idle thread.  Executes when no other thread is ready to run.
 
