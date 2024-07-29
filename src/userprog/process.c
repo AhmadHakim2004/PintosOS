@@ -186,8 +186,7 @@ setup_args (char *save_ptr, void **esp, char *file_name)
 
   //check stackoverflow
   if ((void *) esp < (PHYS_BASE - PGSIZE))
-    thread_exit();
-    
+    thread_exit ();
 }
 
 /* Waits for thread TID to die and returns its exit status.  If
@@ -223,17 +222,15 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
-
   
   enum intr_level old_level = intr_disable ();
   close_files ();
   free_child_threads ();
   intr_set_level (old_level);
-  //free pcb struct
   free (cur->pcb);
 
-  hash_destroy(&cur->mappings, mapped_file_destory);
-  hash_destroy(&cur->spt, spt_entry_destory);
+  hash_destroy (&cur->mappings, mapped_file_destory);
+  hash_destroy (&cur->spt, spt_entry_destory);
 
   struct child_thread_info *cti = find_child_thread (cur->parent, cur->tid);
   printf ("%s: exit(%d)\n", cur->name, cti->exit_status);
@@ -362,16 +359,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  lock_acquire(&file_lock);
+  lock_acquire (&file_lock);
   file = filesys_open (file_name);
   if (file == NULL) 
     {
-      lock_release( &file_lock);
+      lock_release (&file_lock);
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
   file_deny_write (file);
-  lock_release( &file_lock);
+  lock_release (&file_lock);
   #ifdef USERPROG
     thread_current () -> pcb -> file = file;
   #endif
@@ -532,7 +529,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
 
+  lock_acquire (&file_lock);
   file_seek (file, ofs);
+  lock_release (&file_lock);
   while (read_bytes > 0 || zero_bytes > 0) 
     {
       if (upage == NULL || is_kernel_vaddr (upage) || is_kernel_vaddr (upage) 
@@ -553,7 +552,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
       ofs += page_read_bytes;
-
     }
   return true;
 }
@@ -570,19 +568,17 @@ setup_stack (void **esp)
   kpage = frame->kpage;
   if (kpage != NULL) 
     {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+      void *upage = ((uint8_t *) PHYS_BASE) - PGSIZE;
+      success = install_page (upage, kpage, true);
       if (success)
         {
           *esp = PHYS_BASE;
-
-          struct spt_entry *spe = init_spt_entry (((uint8_t *) PHYS_BASE) - PGSIZE, frame, NULL, 0, 
-                          PGSIZE, true, true, SWAP);
+          struct spt_entry *spe = init_spt_entry (upage, frame, NULL, 0, 
+                                                  PGSIZE, true, true, SWAP);
           frame->spe = spe; 
         }
       else
-      {
-        free_frame(frame);
-      }
+        free_frame (frame);
     }
   return success;
 }
@@ -642,12 +638,6 @@ get_file_elem_from_fd (int fd)
 void 
 close_files ()
   {
-    if(!lock_held_by_current_thread(&file_lock))
-      {
-        lock_acquire(&file_lock);
-      }
-   
-
     struct thread *curr = thread_current ();
     struct pcb *pcb = curr->pcb;
 
@@ -665,6 +655,5 @@ close_files ()
       e = next;
     }
     file_close (pcb->file);
-    lock_release(&file_lock);
     intr_set_level (old_level);
   }

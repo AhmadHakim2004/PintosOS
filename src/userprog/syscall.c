@@ -12,7 +12,6 @@
 #include "filesys/file.h"
 #include "pagedir.h"
 #include "process.h"
-#include "lib/user/syscall.h"
 #include "vm/mapped_file.h"
 #include "vm/page.h"
 
@@ -350,6 +349,8 @@ close_handler (int fd)
   free (fds);
 }
 
+/* Maps the file open as fd into the process’s virtual address space. 
+The entire file ismapped into consecutive virtual pages starting at addr. */
 static mapid_t 
 mmaphandler (int fd, void *addr)
 {
@@ -368,6 +369,15 @@ mmaphandler (int fd, void *addr)
   file = file_reopen (file);
   uint32_t read_bytes = file_length (file);
   uint32_t zero_bytes = PGSIZE - (read_bytes % PGSIZE);
+
+  int page_num = read_bytes / PGSIZE + 1;
+  for (int i = 0; i < page_num; i++)
+  {
+    void * page_addr = addr + (PGSIZE * i);
+    if (get_spt_entry (page_addr) != NULL) 
+      return -1;
+  }
+  
   if (!load_segment (file_reopen (fds->fp), 0, addr, read_bytes,zero_bytes, true))
     return -1;
 
@@ -377,38 +387,36 @@ mmaphandler (int fd, void *addr)
   mapped_file_entry->file = file;
   mapped_file_entry->size = read_bytes;
   mapped_file_entry->id = thread_current ()->last_mapid;
-  hash_insert(&thread_current()->mappings, &mapped_file_entry->hash_elem);
+  hash_insert (&thread_current ()->mappings, &mapped_file_entry->hash_elem);
   
   return mapped_file_entry->id;
 }
 
+/* Unmaps the mapping designated by mapping, which must be a mapping ID returned
+by a previous call to mmap by the same process that has not yet been unmapped.*/
 static void 
 munmap_handler (mapid_t id)
 {
-  struct mapped_file *mapped_file = get_mapped_file(id);
+  struct mapped_file *mapped_file = get_mapped_file (id);
   if (mapped_file == NULL)
     return;
 
-  mapped_file_destory(&mapped_file->hash_elem, NULL);
+  mapped_file_destory (&mapped_file->hash_elem, NULL);
 }
 
 /* Checks if the provided pointer is valid. */
 static bool 
-is_valid_pointer_with_size (void *p, int size, bool check)
+is_valid_pointer_with_size (void *p, int size, bool can_grow_stack)
 {
   uintptr_t addr = (uintptr_t)p;
-  bool b1 = p != NULL;
-  bool b2 = is_user_vaddr (p);
-  bool b3 = (uint32_t *)p >= (esp - 32);
-  bool b4 = get_spt_entry (p) != NULL 
-         && is_user_vaddr (p+size-1) 
-         && (addr / PGSIZE == (addr+size-1) / PGSIZE
-             || get_spt_entry (p+size-1) != NULL);
-  bool b5 = &esp > PHYS_BASE - MAX_STACK_SIZE;
-  return b1 && b2 && b5 && ((check && b3) || b4);
-      
-      // TODO: check stack pointer validation
-        
+  bool is_mapped_virtual_memory = get_spt_entry (p) != NULL
+                                  && is_user_vaddr (p+size-1) 
+                                  && (addr / PGSIZE == (addr+size-1) / PGSIZE
+                                      || get_spt_entry (p+size-1) != NULL);
+  bool growing_stack = (uint32_t *)p >= (esp - 32);
+
+  return p != NULL && is_user_vaddr (p) 
+         && (is_mapped_virtual_memory || (can_grow_stack && growing_stack));        
 }
 
 /* Checks if the provided pointer is valid if its an int, unsigned or char * 
