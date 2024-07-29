@@ -296,7 +296,7 @@ case where two processes will wait on each other.
 >> into physical memory, or do you use some other design?  How do you
 >> gracefully handle attempted accesses to invalid virtual addresses?
 
-We use page page faults to bring in pages, that our paged-out, during sytem calls. 
+We use page page faults to bring in pages, that are paged-out, during sytem calls. 
 The "in_memory" boolean flag in the entry of the supplemental page table helps us keep 
 track of what pages are in-memory vs not in-memory. 
 
