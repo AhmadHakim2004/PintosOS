@@ -115,14 +115,10 @@ frame_evict (struct frame *f)
 		bool is_dirty = pagedir_is_dirty (f->owner->pagedir, spe->uaddr);
 		enum vpt type = spe->vpt;
 
-		if (type == SWAP)
+		if (type == SWAP || (type == ELF_FILE && is_dirty))
 			{
 				spe->swap_index = swap_out (f->kpage);
-			}
-		if (type == ELF_FILE && is_dirty)
-			{
-				spe->swap_index = swap_out (f->kpage);
-				spe->vpt = SWAP;
+        spe->vpt = SWAP;
 			}
 		if (type == MAPPED_FILE && is_dirty)
 			{
