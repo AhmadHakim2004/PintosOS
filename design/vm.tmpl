@@ -229,6 +229,22 @@ optimizing memory usage and system performance.
 >> process Q, how do you adjust the page table (and any other data
 >> structures) to reflect the frame Q no longer has?
 
+When a process P obtains a frame that was previously used by process Q, we adjust 
+the page table and associated data structures to reflect that process Q no longer 
+has the frame. This is done in our frame_evict function, which handles the eviction 
+process. First, the find_evict_frame function is called to identify a suitable frame 
+for eviction using the second chance algorithm. Once a frame is chosen, frame_evict 
+proceeds to clear the page table entry for the evicted frame using pagedir_clear_page, 
+ensuring that process Q's page table no longer references this frame.
+
+The frame_evict function then writes the frame's contents to the appropriate swap slot 
+or file, depending on the type of the supplemental page entry. If the page is mapped 
+(MMAPED) and dirty, its contents are written back to the file. If the page is executable 
+and dirty, it is swapped out, updating the supplemental page entry to indicate the new swap 
+location. The frame's reference in the supplemental page entry is cleared, and the in_memory 
+flag is set to false to indicate that the page is no longer in memory. Finally, the frame is 
+freed using frame_free, making it available for process P to use.
+
 >> B4: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
