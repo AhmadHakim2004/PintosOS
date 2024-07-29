@@ -186,6 +186,35 @@ struct thread { ...
 >> B2: When a frame is required but none is free, some frame must be
 >> evicted.  Describe your code for choosing a frame to evict.
 
+In our implementation, we employ the second chance algorithm for frame eviction, 
+utilizing a hash table (frame_table) to store the frames.
+
+When a frame needs to be evicted, we first acquire a lock on the frame_table to 
+ensure consistency during the eviction process. We then perform up to two passes 
+over the hash table to find a suitable frame. During each pass, we use a hash 
+iterator to traverse the frame_table.
+
+For each frame, we check if it is pinned. Pinned frames are those currently in 
+use or otherwise protected from eviction, and thus cannot be evicted. If a frame 
+is not pinned, we then check if the corresponding page has been accessed recently 
+by examining the accessed bit in the page directory.
+
+If the frame has been accessed recently, we reset the accessed bit to false, 
+giving the frame a second chance to stay in memory. This means the frame will 
+remain in memory for at least one more iteration of the eviction process. If 
+the frame has not been accessed recently (the accessed bit is false), it is 
+selected for eviction as it has not been used and is considered the best candidate 
+for removal.
+
+This process is repeated until a suitable frame is found. If no unpinned and 
+unaccessed frame is identified after two passes through the hash table, we 
+release the lock and return NULL, indicating that no frame can be evicted at this time.
+
+By using this method, we ensure that frames that are actively being used are given 
+a chance to remain in memory, while those that are not are evicted, thereby 
+optimizing memory usage and system performance.
+
+
 >> B3: When a process P obtains a frame that was previously used by a
 >> process Q, how do you adjust the page table (and any other data
 >> structures) to reflect the frame Q no longer has?
