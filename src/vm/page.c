@@ -12,23 +12,26 @@ static unsigned spt_hash (const struct hash_elem *p_, void *aux UNUSED);
 static bool spt_less (const struct hash_elem *a_, const struct hash_elem *b_,
                       void *aux UNUSED);
 
+/* Initialize supplemental page table */
 void
 init_spt (struct thread *t)
 	{
 		hash_init (&t->spt, spt_hash, spt_less, NULL);
 	}
 
+/* Initialize an spt entry */
 struct spt_entry *
-init_spt_entry (uint8_t *uaddr, struct frame *frame, struct file *file, off_t file_offset, 
-				size_t file_page_size, bool writable, bool in_memory, enum vpt vpt)
+init_spt_entry (uint8_t *uaddr, struct frame *frame, struct file *file, 
+								off_t file_offset, size_t file_page_size, bool writable, 
+								bool in_memory, enum vpt vpt)
 	{
-		struct spt_entry *spt_entry = malloc(sizeof (struct spt_entry));
-        spt_entry->uaddr = uaddr;
+		struct spt_entry *spt_entry = malloc (sizeof (struct spt_entry));
+    spt_entry->uaddr = uaddr;
 		spt_entry->frame = frame;
-      	spt_entry->file = file;
-        spt_entry->file_offset = file_offset;
-        spt_entry->file_page_size = file_page_size;
-        spt_entry->writable = writable;
+    spt_entry->file = file;
+		spt_entry->file_offset = file_offset;
+    spt_entry->file_page_size = file_page_size;
+    spt_entry->writable = writable;
 		spt_entry->in_memory = in_memory;
 		spt_entry->vpt = vpt;
 		hash_insert(&thread_current()->spt, &spt_entry->hash_elem);
@@ -43,9 +46,9 @@ get_spt_entry(void *uaddr)
 
   	spt_entry.uaddr = (uint8_t *)pg_round_down (uaddr);
   	struct hash_elem *hash_elem_f = hash_find(&thread_current()->spt, 
-                                            &spt_entry.hash_elem);
+                                            	&spt_entry.hash_elem);
 
-  	if(hash_elem_f != NULL)
+  	if (hash_elem_f != NULL)
     	{
       	return hash_entry(hash_elem_f, struct spt_entry, hash_elem);
     	}
@@ -53,32 +56,35 @@ get_spt_entry(void *uaddr)
   	return NULL;
 	}
 
+/* Load a file to page KPAGE using data from spt entry SPT_ENTRY */
 bool 
 load_file_page_to_mem (void *kpage, struct spt_entry *spt_entry)
 	{
-		// lock_acquire (&file_lock);
 		if (file_read_at (spt_entry->file, kpage, spt_entry->file_page_size, 
-											spt_entry->file_offset) != (int) spt_entry->file_page_size)
+										spt_entry->file_offset) != (int) spt_entry->file_page_size)
 			{
 				return false;
 			}
-		// print_ascii (kpage, spt_entry->file_page_size);
 			
 		memset(kpage + spt_entry->file_page_size, 0,
 		PGSIZE - spt_entry->file_page_size);
-		// lock_release (&file_lock);
+
 		return true;
 	}
 
-void spt_entry_destory(struct hash_elem *e, void *aux UNUSED)
+/* Helper function to free spt entries in the spt hash */
+void 
+spt_entry_destory(struct hash_elem *e, void *aux UNUSED)
 	{
-		struct spt_entry *spt_entry = hash_entry(e, struct spt_entry, hash_elem);
+		struct spt_entry *spt_entry = hash_entry (e, struct spt_entry, hash_elem);
 		if (spt_entry->frame != NULL && spt_entry->in_memory)
-			free_frame(spt_entry->frame);
-		hash_delete(&thread_current()->spt, &spt_entry->hash_elem);
-		free(spt_entry);
+			free_frame (spt_entry->frame);
+
+		hash_delete (&thread_current()->spt, &spt_entry->hash_elem);
+		free (spt_entry);
 	}
 
+/* Returns the hash key using the spt entry's user address. */
 static unsigned
 spt_hash (const struct hash_elem *p_, void *aux UNUSED)
 {
@@ -87,7 +93,7 @@ spt_hash (const struct hash_elem *p_, void *aux UNUSED)
   return hash_bytes (&spt_entry->uaddr, sizeof spt_entry->uaddr);
 }
 
-
+/* Comparision function for spt hash table using UADDRs */
 static bool
 spt_less (const struct hash_elem *a_, const struct hash_elem *b_,
             void *aux UNUSED)
