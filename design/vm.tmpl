@@ -261,6 +261,25 @@ If any of the above check failts, we exit the process.
 >> textbook for an explanation of the necessary conditions for
 >> deadlock.)
 
+We have a global frame table that stores the physical page addresses and their owner as well as
+the frame's pinned statusm and swap table to indicate available swap spaces. 
+And each process has its own page table to store the user page addresses as well as information about
+the type of page and a reference to the page's file, its size and offset, and swap index if its not in memory.
+Each process also have a mappings table to store information about the mapped files like a reference to the 
+file and its size as well as the user address its stored at.
+
+We have two global locks, one for the frame table and the other for the swap table.
+The swap table lock is only used in the swap_in and swap_out function.
+The swap_in function is only called in the page fault handler when accessing a fault
+address for a swap page and having to move it back to the frame table after obtaining
+a frame for it. Therefore at this point the current process would have already released
+the frame table lock.
+The swap_out function is only called in the frame_evict function which is used in init_frame
+before mallocing the frame and acquiring the frame table lock therefore it would have already
+released the swap table lock.
+Since all processes release the lock its holding before acquiring the other, there won't be a
+case where two processes will wait on each other.
+
 >> B6: A page fault in process P can cause another process Q's frame
 >> to be evicted.  How do you ensure that Q cannot access or modify
 >> the page during the eviction process?  How do you avoid a race
@@ -285,6 +304,12 @@ If any of the above check failts, we exit the process.
 >> possibility for deadlock but allows for high parallelism.  Explain
 >> where your design falls along this continuum and why you chose to
 >> design it this way.
+
+We decided to have seperate locks for global tables (i.e. frame table and swap table)
+This way we tried to get the best of both worlds by making synchronization easier having
+to only manage two locks and making sure processes release the lock they hold before they
+try to acquire the other lock. As well as allowing better parallelism with different processes 
+being able to perform frame and swap function parallely. 
 
              MEMORY MAPPED FILES
              ===================
