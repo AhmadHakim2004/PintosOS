@@ -34,7 +34,7 @@ get_mapped_file(mapid_t mapid)
 		return NULL;
 	}
 
-
+/* Helper function to free mapped files in the mappings hash table. */
 void 
 mapped_file_destory(struct hash_elem *e, void *aux UNUSED)
 	{
@@ -64,6 +64,8 @@ mapped_file_destory(struct hash_elem *e, void *aux UNUSED)
 		free (mapped_file);
 	}
 
+
+/* Returns a hash value for mapped file P. */
 static unsigned
 mapped_file_hash (const struct hash_elem *p_, void *aux UNUSED)
 {
@@ -73,7 +75,7 @@ mapped_file_hash (const struct hash_elem *p_, void *aux UNUSED)
   return hash_bytes (&mapped_file_entry->id, sizeof mapped_file_entry->id);
 }
 
-
+/* Returns true if mapped file A precedes mapped file B. */
 static bool
 mapped_file_less (const struct hash_elem *a_, const struct hash_elem *b_,
             			void *aux UNUSED)
