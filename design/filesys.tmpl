@@ -1,4 +1,4 @@
-       	     +-------------------------+
+             +-------------------------+
              | CSCC69                  |
              | PROJECT 4: FILE SYSTEMS |
              | DESIGN DOCUMENT         |
@@ -8,9 +8,9 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Ahmad Hakim ahmad.hakim@mail.utoronto.ca
+Ansh Aneel ansh.aneel@mail.utoronto.ca
+Syed Asad Hussain asadh.syed@mail.utoronto.ca
 
 ---- PRELIMINARIES ----
 
@@ -29,6 +29,34 @@ FirstName LastName <email@domain.example>
 >> A1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+
+/* Number of direct, indirect, and doubly indirect blocks in inode */
+#define DIRECT_BLOCKS 124
+#define INDIRECT_PTRS 128
+#define DOUBLY_INDIRECT_BLOCKS 128
+
+/* On-disk inode.
+   Must be exactly BLOCK_SECTOR_SIZE bytes long. */
+struct inode_disk
+  {
+    off_t length;                              /* File size in bytes. */
+    unsigned magic;                            /* Magic number. */
+    block_sector_t direct[DIRECT_BLOCKS];      /* Direct blocks. */
+    block_sector_t indirect;                   /* Indirect blocks. */
+    block_sector_t doubly_indirect;            /* Doubly indirect blocks. */
+  };
+
+/* In-memory inode. */
+struct inode 
+  {
+    struct list_elem elem;              /* Element in inode list. */
+    block_sector_t sector;              /* Sector number of disk location. */
+    int open_cnt;                       /* Number of openers. */
+    bool removed;                       /* True if deleted, false otherwise. */
+    int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
+    struct inode_disk data;             /* Inode content. */
+    struct lock inode_lock;             /* Lock for inode. */
+  };
 
 >> A2: What is the maximum size of a file supported by your inode
 >> structure?  Show your work.
