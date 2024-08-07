@@ -98,6 +98,14 @@ the lock is released, allowing other processes to proceed.
 >> nonzero data, A is not allowed to see all zeros.  Explain how your
 >> code avoids this race.
 
+Only the write operation is capable of extending a file and increasing its length. If process A attempts to 
+read beyond the file's current length, the read operation will not proceed. Therefore, process B must first 
+extend the file and complete its writing operation before process A can read from the newly added section. 
+This mechanism ensures that process A cannot read any data outside of what process B has written. As a result, 
+if B writes nonzero data, process A will not encounter zeros, as it will only read the data written by B. 
+By managing the order of file extension and data writing, the code ensures process A will never read 
+uninitialized or incorrect data during concurrent read and write operations.
+
 >> A5: Explain how your synchronization design provides "fairness".
 >> File access is "fair" if readers cannot indefinitely block writers
 >> or vice versa.  That is, many processes reading from a file cannot
