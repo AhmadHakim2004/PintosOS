@@ -30,10 +30,8 @@ Syed Asad Hussain asadh.syed@mail.utoronto.ca
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
-/* Number of direct, indirect, and doubly indirect blocks in inode */
-#define DIRECT_BLOCKS 124
-#define INDIRECT_PTRS 128
-#define DOUBLY_INDIRECT_BLOCKS 128
+#define DIRECT_BLOCKS 124   /* Number of direct blocks in inode */
+#define INDIRECT_PTRS 128   /* Number of indirect pointers */
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
@@ -60,6 +58,25 @@ struct inode
 
 >> A2: What is the maximum size of a file supported by your inode
 >> structure?  Show your work.
+
+There are 124 direct block pointers, 1 indirect pointer, and 1 doubly indirect pointer.
+
+Each indirect block holds 512/4 = 128 pointers.
+
+To determine the maximum file size supported by the given inode structure, we need to calculate the total number of data blocks that can be 
+addressed by direct, indirect, and doubly indirect pointers. 
+
+Direct Blocks:
+124 sectors * 512 bytes/sector = 63,488 bytes
+
+Indirect blocks:
+1 indirect block * 128 sectors/indirect block * 512 bytes/sector = 65,536 bytes
+
+Doubly Indirect Blocks:
+1 doubly indirect block * 128 indirect blocks/sector * 128 sectors/indirect block * 512 bytes/sector = 8,388,608 bytes
+
+Total:
+63,488 bytes + 65,536 bytes + 8,388,608 bytes = 8,517,632 bytes
 
 ---- SYNCHRONIZATION ----
 
