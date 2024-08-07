@@ -83,6 +83,14 @@ Total:
 >> A3: Explain how your code avoids a race if two processes attempt to
 >> extend a file at the same time.
 
+The code avoids race conditions when two processes attempt to extend a file simultaneously by utilizing 
+a lock specific to each inode (inode->inode_lock). If the offset + size is greater than the current file size 
+then we know to extend the file. When extending a file, the code first acquires the lock, ensuring exclusive 
+access to the inode's data structure. This prevents other processes from making modifications until the lock 
+is released. Within the critical section, the code calculates the new length, allocates the necessary blocks, 
+updates the inode's length, and writes the updated inode data back to the disk. After completing these operations, 
+the lock is released, allowing other processes to proceed. 
+
 >> A4: Suppose processes A and B both have file F open, both
 >> positioned at end-of-file.  If A reads and B writes F at the same
 >> time, A may read all, part, or none of what B writes.  However, A
