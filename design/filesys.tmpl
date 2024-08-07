@@ -113,6 +113,12 @@ uninitialized or incorrect data during concurrent read and write operations.
 >> processes writing to a file cannot prevent another process forever
 >> from reading the file.
 
+Our synchronization design ensures fairness by allowing both readers and writers to access the file without indefinite 
+blocking. Writers acquire the inode lock to extend and modify the file, briefly blocking readers during this critical 
+section. Once the lock is released, readers can proceed, ensuring that write operations do not prevent read operations 
+for long periods. Since readers do not require the lock, they cannot block writers indefinitely. This design ensures 
+neither type of operation is starved, maintaining fair and timely access to the file for both readers and writers.
+
 ---- RATIONALE ----
 
 >> A6: Is your inode structure a multilevel index?  If so, why did you
