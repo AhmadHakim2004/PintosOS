@@ -127,6 +127,13 @@ neither type of operation is starved, maintaining fair and timely access to the 
 >> structure, and what advantages and disadvantages does your
 >> structure have, compared to a multilevel index?
 
+Yes, our inode structure is a multilevel index, chosen to balance efficiency for small files and capability for large files. 
+We use 124 direct blocks for quick access to small files, optimizing performance without additional lookups. The single 
+indirect block allows addressing an additional 128 blocks, efficiently handling medium-sized files with minimal overhead. 
+The doubly indirect block extends the maximum file size by addressing up to 16,384 blocks (8,388,608 bytes), supporting larger files. 
+Additionally, we chose not to store all sectors in one large array to make the inode structure easier to work with and modify, 
+allowing for more manageable and flexible file system operations.
+
                 SUBDIRECTORIES
                 ==============
 
