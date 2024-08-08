@@ -271,9 +271,9 @@ read_handler (int fd, char *buffer, unsigned size)
   if (fp == NULL)
     return -1;
   
-  lock_acquire (&file_lock);
+  // lock_acquire (&file_lock);
   int read_length = file_read (fp, buffer, size);
-  lock_release (&file_lock);
+  // lock_release (&file_lock);
   return read_length;
 }
 
@@ -295,9 +295,9 @@ write_handler (int fd, char *buffer, unsigned length)
   if (fp == NULL)
     return -1;
   
-  lock_acquire (&file_lock);
+  // lock_acquire (&file_lock);
   int write_length = file_write (fp, buffer, length);
-  lock_release (&file_lock);
+  // lock_release (&file_lock);
   return write_length;
 }
 
