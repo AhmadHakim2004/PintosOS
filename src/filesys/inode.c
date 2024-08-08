@@ -256,11 +256,16 @@ static int
 inode_create_indirect (block_sector_t *indirect_block, size_t num_sectors)
 {
   //this checks if the indirect block has been iniatilized 
-  if (! (*indirect_block)) {
-    if (!free_map_allocate (1, indirect_block)) {
-      return -1;
-    }
-    block_write (fs_device, *indirect_block, zeroed_sector);
+  if (! (*indirect_block)) 
+  {
+    if (!free_map_allocate (1, indirect_block)) 
+      {
+        return -1;
+      }
+    else
+      {
+        block_write (fs_device, *indirect_block, zeroed_sector);
+      }
   }
 
   //read the indirect block to the indirect buffer
@@ -298,11 +303,16 @@ static int
 inode_create_db_indirect (block_sector_t *db_indirect, size_t num_sectors)
 {
   //this checks if the indirect block has been iniatilized 
-  if (!(*db_indirect)) {
-    if (!free_map_allocate (1, db_indirect)) {
-      return -1;
-    }
-    block_write (fs_device, *db_indirect, zeroed_sector);
+  if (!(*db_indirect)) 
+  {
+    if (!free_map_allocate (1, db_indirect)) 
+      {
+        return -1;
+     }
+     else
+      {
+        block_write (fs_device, *db_indirect, zeroed_sector);
+      }
   }
 
   block_sector_t db_indirect_buff[INDIRECT_PTRS];
