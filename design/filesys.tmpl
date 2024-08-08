@@ -33,6 +33,18 @@ Syed Asad Hussain asadh.syed@mail.utoronto.ca
 #define DIRECT_BLOCKS 124   /* Number of direct blocks in inode */
 #define INDIRECT_PTRS 128   /* Number of indirect pointers */
 
+#define MAX_DIRECT_BYTE \               /* Max direct byte */
+    (DIRECT_BLOCKS * BLOCK_SECTOR_SIZE)
+
+#define MAX_INDIRECT_BYTE \                /* Max indirect byte */
+    ((INDIRECT_PTRS * BLOCK_SECTOR_SIZE) \
+    + MAX_DIRECT_BYTE)
+
+#define MAX_DINDIRECT_BYTE \                /* Max doubly indirect byte */
+    ((INDIRECT_PTRS * INDIRECT_PTRS * BLOCK_SECTOR_SIZE) \
+    + MAX_INDIRECT_BYTE)
+
+
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
